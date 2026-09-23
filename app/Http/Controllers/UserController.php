@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -136,8 +137,6 @@ class UserController extends Controller
 
         $validated['account_status'] = ($actor->isSuperAdmin() || $actor->isTeknik()) ? 'approved' : 'pending';
 
-        $validated['visible_password'] = $validated['password'];
-
         User::create($validated);
 
         $successMsg = $validated['account_status'] === 'approved'
@@ -190,7 +189,6 @@ class UserController extends Controller
         if ($request->filled('password')) {
             $request->validate(['password' => 'string|min:6|confirmed']);
             $validated['password'] = $request->password;
-            $validated['visible_password'] = $request->password;
         }
 
         $user->update($validated);
@@ -255,6 +253,18 @@ class UserController extends Controller
         return back()->with('success', "Akun {$user->name} berhasil di-reject.");
     }
 
+    /**
+     * Reset a user's password back to the default password (Superadmin only).
+     */
+    public function resetPassword(User $user)
+    {
+        $user->update([
+            'password' => Hash::make(self::DEFAULT_PASSWORD),
+        ]);
+
+        return back()->with('success', "Password {$user->name} berhasil direset ke default.");
+    }
+
     private function authorizeUserDepartment(User $user): void
     {
         if (auth()->user()->isSuperAdmin()) {
@@ -289,7 +299,6 @@ class UserController extends Controller
     private function userFormPayload(User $user): array
     {
         return $user->only(['id', 'username', 'name', 'email', 'role', 'bidang', 'no_hp']) + [
-            'visible_password' => $user->visible_password ?: self::DEFAULT_PASSWORD,
             'default_password' => self::DEFAULT_PASSWORD,
         ];
     }

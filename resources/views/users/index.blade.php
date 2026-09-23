@@ -134,9 +134,9 @@
                                     <td>{{ $user->email }}</td>
                                     <td>
                                         @php
-                                            $roleColors = ['superadmin' => 'dark', 'admin' => 'primary', 'manajer' => 'warning', 'staf' => 'info'];
+                                            $roleColors = ['superadmin' => 'badge-role-superadmin', 'admin' => 'badge-role-admin', 'manajer' => 'badge-role-manajer', 'staf' => 'badge-role-staf'];
                                         @endphp
-                                        <span class="badge bg-{{ $roleColors[$user->role] ?? 'secondary' }}"
+                                        <span class="badge {{ $roleColors[$user->role] ?? 'bg-secondary' }}"
                                             style="font-size:11px; padding:14px 37px !important; border-radius:20px;">
                                             {{ ucfirst($user->role) }}
                                         </span>
@@ -199,6 +199,16 @@
                                                         <button type="button" class="btn-action delete" title="Hapus"
                                                             onclick="swalConfirm('Hapus User', 'Yakin hapus user ini? Data yang sudah dihapus tidak bisa dikembalikan.', 'warning', 'Ya, Hapus', '#deleteUser-{{ $user->id }}')">
                                                             <i class="bi bi-trash-fill"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                @if($actor->isSuperAdmin())
+                                                    <form action="{{ route('users.resetPassword', $user) }}" method="POST"
+                                                        id="resetPasswordUser-{{ $user->id }}">
+                                                        @csrf
+                                                        <button type="button" class="btn-action reset-password" title="Reset Password"
+                                                            onclick="openResetPasswordModal('{{ $user->id }}', {{ Illuminate\Support\Js::from($user->name) }})">
+                                                            <i class="bi bi-key-fill"></i>
                                                         </button>
                                                     </form>
                                                 @endif
@@ -354,6 +364,40 @@
             </div>
         </div>
     @endif
+
+    {{-- Reset Password Confirmation Modal --}}
+    @if($actor->isSuperAdmin())
+        <div class="modal fade inventrack-modal" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="position:relative;">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-key-fill"></i> <span>Reset Password User</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">
+                            Yakin ingin mereset password user <strong id="resetPasswordUserName">-</strong> ke password
+                            default? Password lama user ini tidak akan berlaku lagi setelah direset.
+                        </p>
+                        <div class="default-password-note">
+                            <i class="bi bi-key-fill"></i>
+                            <label for="resetPasswordDefaultValue" class="mb-0">Password default</label>
+                            <input type="text" id="resetPasswordDefaultValue" class="default-password-readonly"
+                                value="{{ $defaultPassword }}" readonly tabindex="-1" aria-readonly="true">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-danger" id="resetPasswordConfirmBtn">
+                            <i class="bi bi-check-lg"></i> Ya, Reset Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @if($canManageUsers)
@@ -423,12 +467,14 @@
                     document.getElementById('userId').value = id;
                     document.getElementById('userMethod').value = 'PUT';
                     document.getElementById('userSubmitBtn').innerHTML = '<i class="bi bi-check-lg"></i> Update';
-                    document.getElementById('userPasswordLabel').innerHTML = 'Password User';
-                    document.getElementById('userPasswordConfirmLabel').innerHTML = 'Konfirmasi Password';
-                    document.getElementById('userPassword').placeholder = 'Password user saat ini';
-                    document.getElementById('userPasswordConfirm').placeholder = 'Ulangi password user';
-                    document.getElementById('userPassword').setAttribute('required', 'required');
-                    document.getElementById('userPasswordConfirm').setAttribute('required', 'required');
+                    document.getElementById('userPasswordLabel').innerHTML = 'Password Baru';
+                    document.getElementById('userPasswordConfirmLabel').innerHTML = 'Konfirmasi Password Baru';
+                    document.getElementById('userPassword').placeholder = 'Kosongkan jika tidak ingin mengubah password';
+                    document.getElementById('userPasswordConfirm').placeholder = 'Ulangi password baru';
+                    document.getElementById('userPassword').removeAttribute('required');
+                    document.getElementById('userPasswordConfirm').removeAttribute('required');
+                    document.getElementById('userPassword').value = '';
+                    document.getElementById('userPasswordConfirm').value = '';
 
                     const loading = document.getElementById('userLoading');
                     loading.classList.add('show');
@@ -448,7 +494,7 @@
                             if (document.getElementById('userBidang')) {
                                 document.getElementById('userBidang').value = data.bidang || '';
                             }
-                            setUserPasswordFields(data.visible_password || data.default_password || defaultUserPassword);
+                            document.getElementById('userDefaultPassword').value = defaultUserPassword;
                             updateUserRoleOptions();
                         })
                         .catch(() => {
@@ -542,6 +588,29 @@
                 document.getElementById('userError').style.display = 'none';
                 document.querySelectorAll('#userForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
             });
+
+            // Reset Password confirmation modal (superadmin only)
+            const resetPasswordModalEl = document.getElementById('resetPasswordModal');
+            let resetPasswordModal = null;
+            let resetPasswordFormId = null;
+
+            if (resetPasswordModalEl) {
+                document.body.appendChild(resetPasswordModalEl);
+                resetPasswordModal = new bootstrap.Modal(resetPasswordModalEl);
+
+                document.getElementById('resetPasswordConfirmBtn').addEventListener('click', function () {
+                    if (resetPasswordFormId) {
+                        document.getElementById(resetPasswordFormId).submit();
+                    }
+                });
+            }
+
+            function openResetPasswordModal(id, name) {
+                if (!resetPasswordModal) return;
+                resetPasswordFormId = 'resetPasswordUser-' + id;
+                document.getElementById('resetPasswordUserName').textContent = name;
+                resetPasswordModal.show();
+            }
 
             // Autocomplete search suggestions for Users
             (function() {

@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\StuffRequestSubmitted;
 use App\Models\Item;
 use App\Models\StuffRequest;
 use App\Models\Transaction;
+use App\Support\InventoryMail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class StuffRequestController extends Controller
@@ -383,7 +387,7 @@ class StuffRequestController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($validated, $mergedByItem) {
+        $stuffRequest = DB::transaction(function () use ($validated, $mergedByItem) {
             $validated['status'] = 'pending';
             $stuffRequest = StuffRequest::create($validated);
             foreach ($mergedByItem as $itemId => $quantity) {
@@ -392,7 +396,26 @@ class StuffRequestController extends Controller
                     'quantity' => $quantity,
                 ]);
             }
+
+            return $stuffRequest;
         });
+
+        $recipients = InventoryMail::gaadmNotificationRecipients();
+        if ($recipients === []) {
+            Log::warning('Email Permintaan Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
+        } else {
+            foreach ($recipients as $email) {
+                try {
+                    Mail::to($email)->send(new StuffRequestSubmitted($stuffRequest));
+                } catch (\Throwable $e) {
+                    Log::error('Gagal kirim email Permintaan Barang', [
+                        'to' => $email,
+                        'stuff_request_id' => $stuffRequest->id,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('public.stuff-request', ['bidang' => $validated['bidang']])
             ->with('success', 'Permintaan barang berhasil dikirim! Permintaan Anda akan ditinjau oleh Admin.');
@@ -617,6 +640,15 @@ class StuffRequestController extends Controller
         ]);
 
         return back()->with('success', "Permintaan barang dari {$stuffRequest->requester_name} telah dibatalkan.");
+    }
+
+    public function destroy(StuffRequest $stuffRequest)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403, 'Hanya superadmin yang dapat menghapus riwayat permintaan barang.');
+
+        $stuffRequest->delete();
+
+        return back()->with('success', 'Riwayat permintaan barang berhasil dihapus.');
     }
 
     private function authorizeRequestDepartment(StuffRequest $stuffRequest): void

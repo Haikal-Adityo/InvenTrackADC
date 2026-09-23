@@ -58,8 +58,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ asset('css/custom.css') }}?v={{ filemtime(public_path('css/custom.css')) }}" rel="stylesheet">
-    <!-- Logo  -->
-    <link rel="icon" type="image/png" href="{{ asset('images/logo-web-top.png') }}">
+    <!-- Favicon -->
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset('images/favicon-48.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/favicon-192.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#198754">
     <meta name="mobile-web-app-capable" content="yes">
@@ -343,6 +348,7 @@
 
         <footer class="main-footer sidebar-collapsed">
             <div class="footer-content">
+                <img src="{{ asset('images/footer-ship.png') }}" alt="Logo Kapal" class="footer-ship-img" loading="lazy">
                 <div class="copyright">
                     &copy; 2026 Port Management Unit Suralaya
                 </div>

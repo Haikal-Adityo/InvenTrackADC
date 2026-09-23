@@ -2,21 +2,23 @@
     "name": "NextLog",
     "short_name": "NextLog",
     "description": "Sistem Manajemen Inventaris NextLog",
-    "start_url": "/nextlog/public/",
-    "scope": "/nextlog/public/",
+    "start_url": ".",
+    "scope": ".",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#198754",
     "icons": [
         {
-            "src": "/nextlog/public/images/logo-web-top.png",
+            "src": "images/favicon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
-            "src": "/nextlog/public/images/logo-web-top.png",
+            "src": "images/favicon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         }
     ]
 }

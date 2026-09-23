@@ -82,6 +82,9 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     Route::post('users/{id}/approve-account', [UserController::class, 'approveUser'])->name('users.approveAccount')->middleware('userAkses:manajer');
     Route::post('users/{id}/reject-account', [UserController::class, 'rejectUser'])->name('users.rejectAccount')->middleware('userAkses:manajer');
 
+    // Reset user password to default - superadmin only
+    Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.resetPassword')->middleware('userAkses:superadmin');
+
     // Pending users list for manager
     Route::get('/pending-users', [UserController::class, 'index'])->name('pendingUsers.index')->middleware('userAkses:manajer');
 
@@ -94,6 +97,7 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     Route::get('/Stok-request/export', [StockRequestController::class, 'export'])->name('stock-requests.export')->middleware('userAkses:admin,manajer,staf');
     Route::post('/Stok-request/{stockRequest}/approve', [StockRequestController::class, 'approve'])->name('stock-requests.approve')->middleware('userAkses:admin,manajer');
     Route::post('/Stok-request/{stockRequest}/reject', [StockRequestController::class, 'reject'])->name('stock-requests.reject')->middleware('userAkses:admin,manajer');
+    Route::delete('/Stok-request/{stockRequest}', [StockRequestController::class, 'destroy'])->name('stock-requests.destroy')->middleware('userAkses:superadmin');
 
     // Stuff requests - admin & staff
     Route::get('/stuff-requests', [StuffRequestController::class, 'adminIndex'])->name('stuff-requests.index')->middleware('userAkses:admin,staf');
@@ -101,6 +105,7 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     Route::post('/stuff-requests/{stuffRequest}/reject', [StuffRequestController::class, 'reject'])->name('stuff-requests.reject')->middleware('userAkses:admin');
     Route::post('/stuff-requests/{stuffRequest}/complete', [StuffRequestController::class, 'complete'])->name('stuff-requests.complete')->middleware('userAkses:admin,staf');
     Route::post('/stuff-requests/{stuffRequest}/cancel', [StuffRequestController::class, 'cancel'])->name('stuff-requests.cancel')->middleware('userAkses:admin,staf');
+    Route::delete('/stuff-requests/{stuffRequest}', [StuffRequestController::class, 'destroy'])->name('stuff-requests.destroy')->middleware('userAkses:superadmin');
 
     // Reports - admin & manager
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index')->middleware('userAkses:admin,manajer');

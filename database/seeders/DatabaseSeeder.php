@@ -55,7 +55,6 @@ class DatabaseSeeder extends Seeder
         foreach ($rows as $row) {
             $users[$row['email']] = User::create($row + [
                 'password' => $password,
-                'visible_password' => $defaultPassword,
                 'account_status' => $row['account_status'] ?? 'approved',
             ]);
         }

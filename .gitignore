@@ -1,26 +1,81 @@
-*.log
-.DS_Store
+# ── Environment / secrets ──────────────────────────────
 .env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.cursor/
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
+.env*
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+/storage/*.key
+auth.json
+
+# ── Dependencies ────────────────────────────────────────
+/vendor
 /node_modules
 /.npm-cache
+
+# ── Laravel build & cache artifacts ─────────────────────
 /public/build
 /public/hot
 /public/storage
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitkeep
 /storage/*.key
 /storage/pail
-/vendor
+/storage/app/*
+!/storage/app/public
+!/storage/app/.gitignore
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/testing/.gitignore
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
 _ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+/.phpunit.cache
+.phpunit.result.cache
+phpunit.xml.bak
+
+# ── Deployment / project-specific ───────────────────────
+/_deploy
+
+# ── Logs & debug ────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── OS files ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Editor / IDE ─────────────────────────────────────────
+/.vscode
+/.idea
+/.nova
+/.zed
+/.cursor/
+/.fleet
+.phpactor.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ── Homestead / Sail / Docker local overrides ───────────
 Homestead.json
 Homestead.yaml
-Thumbs.db
+docker-compose.override.yml

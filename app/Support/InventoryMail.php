@@ -40,4 +40,25 @@ final class InventoryMail
 
         return $emails->unique()->values()->all();
     }
+
+    /**
+     * Alamat notifikasi GAADM (config inventory.gaadm_mail / env GAADM_NOTIFICATION_MAIL).
+     * Sementara diarahkan ke email testing, nanti diganti ke email GAADM asli.
+     *
+     * @return list<string>
+     */
+    public static function gaadmNotificationRecipients(): array
+    {
+        $email = config('inventory.gaadm_mail');
+        if (!is_string($email)) {
+            return [];
+        }
+
+        $email = strtolower(trim($email));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return [];
+        }
+
+        return [$email];
+    }
 }

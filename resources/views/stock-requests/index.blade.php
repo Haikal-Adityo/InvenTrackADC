@@ -181,6 +181,16 @@
                                                 </form>
                                             </div>
                                         @endif
+                                        @if(auth()->user()->isSuperAdmin())
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-outline-danger-strong"
+                                                title="Hapus Riwayat"
+                                                onclick="swalConfirm('Hapus Riwayat?', 'Riwayat stock request ini akan dihapus. Data masih bisa dipulihkan oleh developer bila diperlukan.', 'warning', 'Ya, Hapus', '#deleteStockReq-{{ $stockRequest->id }}')">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                            <form action="{{ route('stock-requests.destroy', $stockRequest) }}" method="POST" id="deleteStockReq-{{ $stockRequest->id }}" class="d-none">
+                                                @csrf @method('DELETE')
+                                            </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty

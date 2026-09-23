@@ -143,7 +143,7 @@
                                             <span class="fw-600" style="font-size:13px;">{{ $req->lines->count() }} jenis</span>
                                         @endif
                                     </td>
-                                    <td style="max-width:200px;">
+                                    <td style="max-width:200px;" class="cell-ellipsis">
                                         @if($req->notes)
                                             <span
                                                 style="font-size:12px;color:var(--text-secondary);">{{ Str::limit($req->notes, 50) }}</span>
@@ -196,6 +196,7 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
+                                        @php $hasAction = false; @endphp
                                         @if($req->status === 'pending' && $canProcessAsAdmin && $isTeknik)
                                             <button type="button"
                                                 class="btn btn-sm btn-outline-primary btn-stuff-request-modal-open"
@@ -206,6 +207,7 @@
                                                 data-form-cancel="#cancelReq-{{ $req->id }}">
                                                 <i class="bi bi-box-seam"></i>
                                             </button>
+                                            @php $hasAction = true; @endphp
                                             <div class="d-none" aria-hidden="true">
                                                 <form method="POST" action="{{ route('stuff-requests.complete', $req) }}"
                                                     id="completeReq-{{ $req->id }}">@csrf</form>
@@ -222,6 +224,7 @@
                                                 data-form-reject="#rejectReq-{{ $req->id }}">
                                                 <i class="bi bi-box-seam"></i>
                                             </button>
+                                            @php $hasAction = true; @endphp
                                             <div class="d-none" aria-hidden="true">
                                                 <form method="POST" action="{{ route('stuff-requests.approve', $req) }}"
                                                     id="approveReq-{{ $req->id }}">@csrf</form>
@@ -238,13 +241,27 @@
                                                 data-form-cancel="#cancelReq-{{ $req->id }}">
                                                 <i class="bi bi-box-seam"></i>
                                             </button>
+                                            @php $hasAction = true; @endphp
                                             <div class="d-none" aria-hidden="true">
                                                 <form method="POST" action="{{ route('stuff-requests.complete', $req) }}"
                                                     id="completeReq-{{ $req->id }}">@csrf</form>
                                                 <form method="POST" action="{{ route('stuff-requests.cancel', $req) }}"
                                                     id="cancelReq-{{ $req->id }}">@csrf</form>
                                             </div>
-                                        @else
+                                        @endif
+                                        @if(auth()->user()->isSuperAdmin())
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-outline-danger-strong"
+                                                title="Hapus Riwayat"
+                                                onclick="swalConfirm('Hapus Riwayat?', 'Riwayat permintaan barang dari {{ $req->requester_name }} akan dihapus. Data masih bisa dipulihkan oleh developer bila diperlukan.', 'warning', 'Ya, Hapus', '#deleteReq-{{ $req->id }}')">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                            @php $hasAction = true; @endphp
+                                            <form action="{{ route('stuff-requests.destroy', $req) }}" method="POST" id="deleteReq-{{ $req->id }}" class="d-none">
+                                                @csrf @method('DELETE')
+                                            </form>
+                                        @endif
+
+                                        @if(!$hasAction)
                                             <span style="font-size:11px;color:var(--text-muted);">—</span>
                                         @endif
                                     </td>

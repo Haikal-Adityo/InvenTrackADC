@@ -76,6 +76,7 @@
                             </select>
                         </div>
                         
+                        @unless(auth()->user()->isManager())
                         <div class="stock-warning-row">
                             <button type="button" class="btn btn-warning btn-sm stock-trigger-btn w-100"
                                 data-bs-toggle="modal" data-bs-target="#stockRequestModal"
@@ -88,6 +89,7 @@
                                 <i class="bi bi-x-circle-fill me-1"></i> Out of Stock: {{ $outOfStockCount }}
                             </button>
                         </div>
+                        @endunless
                     </div>
                 </form>
             </div>

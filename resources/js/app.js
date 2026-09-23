@@ -192,21 +192,40 @@ document.querySelectorAll('.sidebar-link').forEach((link) => {
     });
 });
 
+let cachedSidebarWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width')) || 270;
+window.addEventListener('resize', () => {
+    cachedSidebarWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width')) || cachedSidebarWidth;
+});
+
+let mousemoveTicking = false;
+let lastMouseEvent = null;
+
 document.addEventListener('mousemove', (event) => {
     if (!sidebarEl || !isDesktopSidebar() || !shouldRestoreSidebarHoverOpen()) return;
 
-    const sidebarRect = sidebarEl.getBoundingClientRect();
-    const sidebarWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'));
-    const isInsideExpandedSidebar =
-        event.clientX >= sidebarRect.left &&
-        event.clientX <= sidebarRect.left + sidebarWidth &&
-        event.clientY >= sidebarRect.top &&
-        event.clientY <= sidebarRect.bottom;
+    lastMouseEvent = event;
+    if (mousemoveTicking) return;
+    mousemoveTicking = true;
 
-    if (!isInsideExpandedSidebar) {
-        rememberSidebarHoverOpen(false);
-        setDesktopSidebarCollapsed(true);
-    }
+    // Throttle to once per animation frame instead of firing on every
+    // mousemove event — avoids repeated forced-layout reads (getBoundingClientRect)
+    // while the sidebar expand/collapse transition is running.
+    requestAnimationFrame(() => {
+        mousemoveTicking = false;
+        if (!lastMouseEvent || !sidebarEl) return;
+
+        const sidebarRect = sidebarEl.getBoundingClientRect();
+        const isInsideExpandedSidebar =
+            lastMouseEvent.clientX >= sidebarRect.left &&
+            lastMouseEvent.clientX <= sidebarRect.left + cachedSidebarWidth &&
+            lastMouseEvent.clientY >= sidebarRect.top &&
+            lastMouseEvent.clientY <= sidebarRect.bottom;
+
+        if (!isInsideExpandedSidebar) {
+            rememberSidebarHoverOpen(false);
+            setDesktopSidebarCollapsed(true);
+        }
+    });
 }, { passive: true });
 
 window.addEventListener('resize', normalizeSidebarForViewport);

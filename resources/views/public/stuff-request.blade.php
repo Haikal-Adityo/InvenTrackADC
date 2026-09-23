@@ -71,11 +71,11 @@
                             <i class="bi bi-building me-1"></i>
                             General Affair
                         </a>
-                        <a href="{{ route('public.stuff-request', array_merge(request()->except(['bidang', 'page']), ['bidang' => 'teknik'])) }}"
+                        {{-- <a href="{{ route('public.stuff-request', array_merge(request()->except(['bidang', 'page']), ['bidang' => 'teknik'])) }}"
                             class="report-tab {{ $activeBidang === 'teknik' ? 'active' : '' }}" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; white-space: nowrap;">
                             <i class="bi bi-tools me-1"></i>
                             SU-SpareTracker
-                        </a>
+                        </a> --}}
                     </div>
                     <button class="btn-theme-toggle" onclick="toggleTheme()" title="Ganti tema">
                         <i class="bi bi-sun-fill icon-sun"></i>
@@ -1114,6 +1114,7 @@
     <!-- Public footer -->
     <footer class="public-footer">
         <div class="footer-content">
+            <img src="{{ asset('images/footer-ship.png') }}" alt="Logo Kapal" class="footer-ship-img" loading="lazy">
             <div class="copyright">
                 &copy; 2026 Port Management Unit Suralaya
             </div>

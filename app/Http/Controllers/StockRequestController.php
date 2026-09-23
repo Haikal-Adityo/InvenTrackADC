@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Exports\StockRequestExport;
+use App\Mail\StockRequestApproved;
+use App\Mail\StockRequestSubmitted;
 use App\Models\Item;
 use App\Models\StockRequest;
 use App\Models\StockRequestLine;
+use App\Support\InventoryMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -113,7 +118,7 @@ class StockRequestController extends Controller
             ]);
         }
 
-        $createdCount = DB::transaction(function () use ($validated) {
+        $createdStockRequests = DB::transaction(function () use ($validated) {
             $items = Item::visibleFor(auth()->user())
                 ->whereIn('id', collect($validated['lines'])->pluck('item_id'))
                 ->get()
@@ -131,7 +136,7 @@ class StockRequestController extends Controller
                 })
                 ->groupBy('category');
 
-            $created = 0;
+            $createdStockRequests = collect();
 
             foreach ($groupedLines as $category => $rows) {
                 $stockRequest = new StockRequest([
@@ -157,14 +162,30 @@ class StockRequestController extends Controller
                     ]);
                 }
 
-                $created++;
+                $createdStockRequests->push($stockRequest);
             }
 
-            return $created;
+            return $createdStockRequests;
         });
 
+        $recipients = InventoryMail::gaadmNotificationRecipients();
+        if ($recipients === []) {
+            Log::warning('Email Request Stock Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
+        } else {
+            foreach ($recipients as $email) {
+                try {
+                    Mail::to($email)->send(new StockRequestSubmitted($createdStockRequests));
+                } catch (\Throwable $e) {
+                    Log::error('Gagal kirim email Request Stock Barang', [
+                        'to' => $email,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
         return redirect()->route('stock-requests.index')
-            ->with('success', "{$createdCount} Permintaan Stok Barang berhasil dibuat.");
+            ->with('success', "{$createdStockRequests->count()} Permintaan Stok Barang berhasil dibuat.");
     }
 
     public function approve(StockRequest $stockRequest)
@@ -181,6 +202,23 @@ class StockRequestController extends Controller
             'processed_by' => auth()->id(),
             'processed_at' => now(),
         ]);
+
+        $recipients = InventoryMail::gaadmNotificationRecipients();
+        if ($recipients === []) {
+            Log::warning('Email approval Stock Request tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
+        } else {
+            foreach ($recipients as $email) {
+                try {
+                    Mail::to($email)->send(new StockRequestApproved($stockRequest));
+                } catch (\Throwable $e) {
+                    Log::error('Gagal kirim email approval Stock Request', [
+                        'to' => $email,
+                        'stock_request_id' => $stockRequest->id,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         return back()->with('success', 'Stock request berhasil disetujui.');
     }
@@ -208,6 +246,15 @@ class StockRequestController extends Controller
         $filename = 'stock_request_' . now()->format('Y-m-d_His') . '.xlsx';
 
         return Excel::download(new StockRequestExport($request), $filename);
+    }
+
+    public function destroy(StockRequest $stockRequest)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403, 'Hanya superadmin yang dapat menghapus riwayat stock request.');
+
+        $stockRequest->delete();
+
+        return back()->with('success', 'Riwayat stock request berhasil dihapus.');
     }
 
     private function authorizeStockRequestDepartment(StockRequest $stockRequest): void
