@@ -59,7 +59,7 @@
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
-    <link rel="preload" as="image" href="{{ asset('images/logo-web-top.png') }}" fetchpriority="high">
+    <link rel="preload" as="image" href="{{ asset('images/favicon-512.png') }}" fetchpriority="high">
     <!-- Bootstrap 5.3 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->

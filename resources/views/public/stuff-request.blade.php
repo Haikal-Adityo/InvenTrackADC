@@ -36,7 +36,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Icon NextLog -->
-    <link rel="icon" type="image/png" href="{{ asset('images/logo-web-top.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon-512.png') }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#198754">
     <meta name="mobile-web-app-capable" content="yes">
@@ -75,7 +75,7 @@
 
                 <div class="brand text-center">
                     <div class="brand-logo-wrapper mx-auto">
-                        <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" class="app-logo" decoding="async" fetchpriority="high">
+                        <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" class="app-logo" decoding="async" fetchpriority="high">
                     </div>
                 </div>
 
@@ -1149,7 +1149,7 @@
                     
                     <div class="login-modal-brand">
                         <div class="brand-icon">
-                            <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" class="login-modal-logo-img" loading="lazy" decoding="async">
+                            <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" class="login-modal-logo-img" loading="lazy" decoding="async">
                         </div>
                         <div class="logo-container">
                             <div class="next-logistic">

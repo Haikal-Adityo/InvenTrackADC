@@ -24,7 +24,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="{{ asset('css/custom.css') }}?v={{ filemtime(public_path('css/custom.css')) }}" rel="stylesheet">
-    <link rel="icon" type="image/png" href="{{ asset('images/logo-web-top.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon-512.png') }}">
     <script>
         (function () {
             const theme = localStorage.getItem('inventrack-theme') || 'light';
@@ -43,7 +43,7 @@
         <div class="login-card w-100" style="max-width:440px;">
             <div class="login-brand text-center mb-2">
                 <div class="brand-reset brand-icon mx-auto mb-3">
-                    <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" style="max-width:240px;" decoding="async" fetchpriority="high">
+                    <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" style="max-width:240px;" decoding="async" fetchpriority="high">
                     <div class="next-logistic">
                                 NEXTLOGISTIC
                     </div>
