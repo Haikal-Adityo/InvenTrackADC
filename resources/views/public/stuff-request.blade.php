@@ -12,21 +12,21 @@
     <meta property="og:site_name" content="NextLog">
     <meta property="og:title" content="NextLog - PT. Artha Daya Coalindo">
     <meta property="og:description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
-    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
-    <meta property="og:image:width" content="1205">
-    <meta property="og:image:height" content="670">
+    <meta property="og:image" content="{{ asset('images/favicon-512.png') }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
     <meta property="og:url" content="{{ url('/') }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="NextLog - PT. Artha Daya Coalindo">
     <meta name="twitter:description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
-    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+    <meta name="twitter:image" content="{{ asset('images/favicon-512.png') }}">
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
-    <link rel="preload" as="image" href="{{ asset('images/logo-web.png') }}" fetchpriority="high">
+    <link rel="preload" as="image" href="{{ asset('images/favicon-512.png') }}" fetchpriority="high">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -75,7 +75,7 @@
 
                 <div class="brand text-center">
                     <div class="brand-logo-wrapper mx-auto">
-                        <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" class="app-logo" decoding="async" fetchpriority="high">
+                        <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" class="app-logo" decoding="async" fetchpriority="high">
                     </div>
                 </div>
 
@@ -1149,7 +1149,7 @@
                     
                     <div class="login-modal-brand">
                         <div class="brand-icon">
-                            <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" class="login-modal-logo-img" loading="lazy" decoding="async">
+                            <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" class="login-modal-logo-img" loading="lazy" decoding="async">
                         </div>
                         <div class="logo-container">
                             <div class="next-logistic">

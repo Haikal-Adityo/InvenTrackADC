@@ -12,15 +12,15 @@
     <meta property="og:site_name" content="NextLog">
     <meta property="og:title" content="Reset Password - NextLog">
     <meta property="og:description" content="Reset password akun NextLog - PT. Artha Daya Coalindo">
-    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
-    <meta property="og:image:width" content="1205">
-    <meta property="og:image:height" content="670">
+    <meta property="og:image" content="{{ asset('images/favicon-512.png') }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+    <meta name="twitter:image" content="{{ asset('images/favicon-512.png') }}">
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
-    <link rel="preload" as="image" href="{{ asset('images/logo-web.png') }}" fetchpriority="high">
+    <link rel="preload" as="image" href="{{ asset('images/favicon-512.png') }}" fetchpriority="high">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="{{ asset('css/custom.css') }}?v={{ filemtime(public_path('css/custom.css')) }}" rel="stylesheet">
@@ -43,7 +43,7 @@
         <div class="login-card w-100" style="max-width:440px;">
             <div class="login-brand text-center mb-2">
                 <div class="brand-reset brand-icon mx-auto mb-3">
-                    <img src="{{ asset('images/logo-web.png') }}" alt="InvenTrack Logo" style="max-width:240px;" decoding="async" fetchpriority="high">
+                    <img src="{{ asset('images/favicon-512.png') }}" alt="InvenTrack Logo" style="max-width:240px;" decoding="async" fetchpriority="high">
                     <div class="next-logistic">
                                 NEXTLOGISTIC
                     </div>

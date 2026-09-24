@@ -48,14 +48,14 @@
     <meta property="og:site_name" content="NextLog">
     <meta property="og:title" content="@yield('title', 'Dashboard') - NextLog">
     <meta property="og:description" content="@yield('subtitle', 'InvenTrack - Sistem Manajemen Inventory Modern')">
-    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
-    <meta property="og:image:width" content="1205">
-    <meta property="og:image:height" content="670">
+    <meta property="og:image" content="{{ asset('images/favicon-512.png') }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="@yield('title', 'Dashboard') - NextLog">
     <meta name="twitter:description" content="@yield('subtitle', 'InvenTrack - Sistem Manajemen Inventory Modern')">
-    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+    <meta name="twitter:image" content="{{ asset('images/favicon-512.png') }}">
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
