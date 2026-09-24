@@ -43,6 +43,20 @@
     <title>@yield('title', 'Dashboard') - Nextlog</title>
     <meta name="description" content="InvenTrack - Sistem Manajemen Inventory Modern">
 
+    {{-- Open Graph / link preview (WhatsApp, dll) --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NextLog">
+    <meta property="og:title" content="@yield('title', 'Dashboard') - NextLog">
+    <meta property="og:description" content="@yield('subtitle', 'InvenTrack - Sistem Manajemen Inventory Modern')">
+    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
+    <meta property="og:image:width" content="1205">
+    <meta property="og:image:height" content="670">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="@yield('title', 'Dashboard') - NextLog">
+    <meta name="twitter:description" content="@yield('subtitle', 'InvenTrack - Sistem Manajemen Inventory Modern')">
+    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link rel="preload" as="image" href="{{ asset('images/logo-web-top.png') }}" fetchpriority="high">

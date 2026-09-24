@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Reset Password - Nextlog</title>
+
+    {{-- Open Graph / link preview (WhatsApp, dll) --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NextLog">
+    <meta property="og:title" content="Reset Password - NextLog">
+    <meta property="og:description" content="Reset password akun NextLog - PT. Artha Daya Coalindo">
+    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
+    <meta property="og:image:width" content="1205">
+    <meta property="og:image:height" content="670">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link rel="preload" as="image" href="{{ asset('images/logo-web.png') }}" fetchpriority="high">

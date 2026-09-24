@@ -6,6 +6,21 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Rekap Stok & Permintaan Barang - NextLog</title>
     <meta name="description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
+
+    {{-- Open Graph / link preview (WhatsApp, dll) --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NextLog">
+    <meta property="og:title" content="NextLog - PT. Artha Daya Coalindo">
+    <meta property="og:description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
+    <meta property="og:image" content="{{ asset('images/logo-web.png') }}">
+    <meta property="og:image:width" content="1205">
+    <meta property="og:image:height" content="670">
+    <meta property="og:url" content="{{ url('/') }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NextLog - PT. Artha Daya Coalindo">
+    <meta name="twitter:description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
+    <meta name="twitter:image" content="{{ asset('images/logo-web.png') }}">
+
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
