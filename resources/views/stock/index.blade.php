@@ -8,25 +8,6 @@
         $isTeknik = $isTeknik ?? (auth()->user()->bidang === 'teknik');
     @endphp
     <div class="animate-fade-in">
-        {{-- Super Admin Bidang Tab Switcher --}}
-        @if(!empty($isSuperAdmin))
-        <div class="report-tabs mb-3 sa-bidang-tabs">
-            <a href="{{ route('stock.index', ['sa_bidang' => 'umum']) }}"
-                class="report-tab sa-bidang-tab {{ ($saBidang ?? '') !== 'teknik' ? 'active' : '' }}"
-                data-sa-bidang="umum"
-                data-sa-section="stockSection"
-                onclick="switchSaBidang('stockSection', this); return false;">
-                <i class="bi bi-building"></i> Bidang Umum
-            </a>
-            <a href="{{ route('stock.index', ['sa_bidang' => 'teknik']) }}"
-                class="report-tab sa-bidang-tab {{ ($saBidang ?? '') === 'teknik' ? 'active' : '' }}"
-                data-sa-bidang="teknik"
-                data-sa-section="stockSection"
-                onclick="switchSaBidang('stockSection', this); return false;">
-                <i class="bi bi-tools"></i> Bidang Teknik
-            </a>
-        </div>
-        @endif
 
         <!-- Header Actions Wrapper -->
         <div class="header-action-wrapper d-none">
@@ -76,20 +57,39 @@
                             </select>
                         </div>
                         
-                        @unless(auth()->user()->isManager())
                         <div class="stock-warning-row">
-                            <button type="button" class="btn btn-warning btn-sm stock-trigger-btn w-100"
-                                data-bs-toggle="modal" data-bs-target="#stockRequestModal"
-                                {{ $requestOrderCount + $outOfStockCount === 0 ? 'disabled' : '' }}>
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Req Order: {{ $requestOrderCount }}
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm stock-trigger-btn w-100"
-                                data-bs-toggle="modal" data-bs-target="#stockRequestModal"
-                                {{ $requestOrderCount + $outOfStockCount === 0 ? 'disabled' : '' }}>
-                                <i class="bi bi-x-circle-fill me-1"></i> Out of Stock: {{ $outOfStockCount }}
-                            </button>
+                            @if(auth()->user()->isManager())
+                                @php
+                                    $reqOrderFilterUrl = request('stock_status') === 'request_stock'
+                                        ? route('stock.index', request()->except('stock_status'))
+                                        : route('stock.index', array_merge(request()->except('stock_status'), ['stock_status' => 'request_stock']));
+                                    $outOfStockFilterUrl = request('stock_status') === 'out_of_stock'
+                                        ? route('stock.index', request()->except('stock_status'))
+                                        : route('stock.index', array_merge(request()->except('stock_status'), ['stock_status' => 'out_of_stock']));
+                                @endphp
+                                <a href="{{ $reqOrderFilterUrl }}"
+                                    class="btn btn-warning btn-sm stock-trigger-btn w-100 {{ request('stock_status') == 'request_stock' ? 'active' : '' }} {{ $requestOrderCount === 0 ? 'disabled' : '' }}"
+                                    {{ $requestOrderCount === 0 ? 'aria-disabled=true tabindex=-1' : '' }}>
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Req Order: {{ $requestOrderCount }}
+                                </a>
+                                <a href="{{ $outOfStockFilterUrl }}"
+                                    class="btn btn-danger btn-sm stock-trigger-btn w-100 {{ request('stock_status') == 'out_of_stock' ? 'active' : '' }} {{ $outOfStockCount === 0 ? 'disabled' : '' }}"
+                                    {{ $outOfStockCount === 0 ? 'aria-disabled=true tabindex=-1' : '' }}>
+                                    <i class="bi bi-x-circle-fill me-1"></i> Out of Stock: {{ $outOfStockCount }}
+                                </a>
+                            @else
+                                <button type="button" class="btn btn-warning btn-sm stock-trigger-btn w-100"
+                                    data-bs-toggle="modal" data-bs-target="#stockRequestModal"
+                                    {{ $requestOrderCount + $outOfStockCount === 0 ? 'disabled' : '' }}>
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Req Order: {{ $requestOrderCount }}
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm stock-trigger-btn w-100"
+                                    data-bs-toggle="modal" data-bs-target="#stockRequestModal"
+                                    {{ $requestOrderCount + $outOfStockCount === 0 ? 'disabled' : '' }}>
+                                    <i class="bi bi-x-circle-fill me-1"></i> Out of Stock: {{ $outOfStockCount }}
+                                </button>
+                            @endif
                         </div>
-                        @endunless
                     </div>
                 </form>
             </div>

@@ -3169,6 +3169,19 @@ span .badge-ship-inactive {
     border: 1.5px solid var(--primary);
 }
 
+/* Indigo outlined button for PDF export actions */
+.btn-outline-pdf {
+    border: 1.5px solid var(--secondary);
+    color: var(--secondary);
+    background: transparent;
+}
+
+.btn-outline-pdf:hover {
+    background: var(--secondary);
+    color: white;
+    border: 1.5px solid var(--secondary);
+}
+
 /* Strong red outlined button variant for destructive actions */
 .btn-outline-danger-strong {
     color: #ef4444 !important;
@@ -5733,12 +5746,17 @@ body::before,
 }
 
 .main-footer {
-    /* Menggunakan background gelap yang selaras dengan sidebar/header */
-    background: #061f1b;
-    padding: 20px 0;
-    color: rgba(255, 255, 255, 0.6);
+    /* Gaya spotlight ellipse ala VMS, tapi pakai color palette NextLog (hijau-emerald), diredupkan */
+    background: radial-gradient(
+        ellipse 600px 70px at center,
+        var(--dark-3, #047857) 0%,
+        var(--dark-2, #065f46) 40%,
+        var(--dark, #022c22) 75%,
+        var(--dark, #022c22) 100%
+    );
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 13px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
     /* Pastikan footer menyesuaikan dengan lebar konten utama (main-content) */
     margin-left: var(--sidebar-width);
     transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
@@ -5749,19 +5767,27 @@ body::before,
 
 .public-footer {
     width: 100%;
-    /* Radial gradient terang di tengah untuk efek "spotlight", selaras dengan .main-footer */
-    background-image: radial-gradient(circle at center, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 28%, transparent 60%), linear-gradient(180deg, #061f1b 0%, #041613 100%);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%, cover;
-    padding: 20px 0;
-    color: rgba(255, 255, 255, 0.6);
+    /* Gaya spotlight ellipse ala VMS, tapi pakai color palette NextLog (hijau-emerald), diredupkan */
+    background: radial-gradient(
+        ellipse 600px 70px at center,
+        var(--dark-3, #047857) 0%,
+        var(--dark-2, #065f46) 40%,
+        var(--dark, #022c22) 75%,
+        var(--dark, #022c22) 100%
+    );
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 13px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
     transition: var(--transition);
     position: relative;
     z-index: 10;
     flex-shrink: 0;
+}
+
+/* Dark mode: footer solid pakai --dark, tanpa gradient */
+[data-theme="dark"] .main-footer,
+[data-theme="dark"] .public-footer {
+    background: var(--dark-2);
 }
 
 /* Penyesuaian saat sidebar ditutup (collapsed) */
@@ -5786,15 +5812,14 @@ body::before,
 
 /* Logo kapal di footer, gaya VMS (.landing-footer-logo) */
 .footer-ship-img {
-    width: 64px;
+    width: 100px;
     height: auto;
     display: block;
-    flex-shrink: 0;
 }
 
 @media (max-width: 480px) {
     .footer-ship-img {
-        width: 48px;
+        width: 78px;
     }
 }
 

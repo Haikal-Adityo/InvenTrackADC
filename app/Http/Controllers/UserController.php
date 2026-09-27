@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    private const DEFAULT_PASSWORD = 'adc.password';
+    private const DEFAULT_PASSWORD = '123456';
 
     public function index(Request $request)
     {
@@ -187,6 +187,7 @@ class UserController extends Controller
         $this->ensureRoleAllowedForBidang($validated['role'], $validated['bidang']);
 
         if ($request->filled('password')) {
+            abort_unless($actor->isSuperAdmin(), 403, 'Hanya Superadmin yang dapat mengubah password user lain.');
             $request->validate(['password' => 'string|min:6|confirmed']);
             $validated['password'] = $request->password;
         }
@@ -254,10 +255,14 @@ class UserController extends Controller
     }
 
     /**
-     * Reset a user's password back to the default password (Superadmin only).
+     * Reset a user's password back to the default password (Superadmin & Admin).
      */
     public function resetPassword(User $user)
     {
+        $actor = auth()->user();
+        abort_unless($actor->isSuperAdmin() || $actor->isAdmin(), 403, 'Hanya Superadmin dan Admin yang dapat mereset password user.');
+        $this->authorizeUserDepartment($user);
+
         $user->update([
             'password' => Hash::make(self::DEFAULT_PASSWORD),
         ]);

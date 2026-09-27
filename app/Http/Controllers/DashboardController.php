@@ -60,9 +60,14 @@ class DashboardController extends Controller
             ->whereMonth('date', $now->month)
             ->whereYear('date', $now->year)
             ->sum('quantity');
-        $pendingCount = $user->isManager() && $user->isTeknik()
-            ? StockRequest::visibleFor($user)->pending()->count()
-            : Transaction::visibleFor($user)->pending()->count();
+        // Hitung "Menunggu Approval" sesuai kewenangan approval role yang sedang login,
+        // bukan sekadar total pending di sistem (supaya tidak menampilkan antrian approval
+        // milik role lain, mis. Manajer bidang Umum yang tidak berwenang approve apa pun).
+        $pendingCount = match (true) {
+            $user->isManager() && $user->isTeknik() => StockRequest::visibleFor($user)->pending()->count(),
+            $user->isManager() && !$user->isTeknik() => 0,
+            default => Transaction::visibleFor($user)->pending()->count(),
+        };
 
         // Low stock items
         $allItems = Item::visibleFor($user)->get();

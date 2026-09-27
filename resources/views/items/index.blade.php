@@ -42,25 +42,6 @@ $itemDetailData[$itemRow->id] = [
     $nameSortLabel = $nameSort === 'asc' ? 'Z ke A' : 'A ke Z';
     $nameSortIcon = $nameSort === 'asc' ? 'bi-sort-alpha-down-alt' : 'bi-sort-alpha-down';
 @endphp
-    {{-- Super Admin Bidang Tab Switcher --}}
-    @if(!empty($isSuperAdmin))
-    <div class="report-tabs mb-3 sa-bidang-tabs">
-        <a href="{{ route('items.index', ['sa_bidang' => 'umum']) }}"
-            class="report-tab sa-bidang-tab {{ ($saBidang ?? '') !== 'teknik' ? 'active' : '' }}"
-            data-sa-bidang="umum"
-            data-sa-section="itemsSection"
-            onclick="switchSaBidang('itemsSection', this); return false;">
-            <i class="bi bi-building"></i> Barang Bidang Umum
-        </a>
-        <a href="{{ route('items.index', ['sa_bidang' => 'teknik']) }}"
-            class="report-tab sa-bidang-tab {{ ($saBidang ?? '') === 'teknik' ? 'active' : '' }}"
-            data-sa-bidang="teknik"
-            data-sa-section="itemsSection"
-            onclick="switchSaBidang('itemsSection', this); return false;">
-            <i class="bi bi-tools"></i> Barang Bidang Teknik
-        </a>
-    </div>
-    @endif
     <!-- Header Actions Wrapper (for header redirection) -->
     <div class="header-action-wrapper d-none">
         <div class="section-header-actions">

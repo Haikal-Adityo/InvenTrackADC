@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use Google\Client;
 use Google\Service\Sheets;
 use Google\Service\Sheets\ValueRange;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -59,18 +60,19 @@ class GoogleSheetController extends Controller
         $client->setApplicationName((string) config('app.name', 'nextlogistic'));
         $client->setScopes([Sheets::SPREADSHEETS]);
 
-        $path = storage_path('app/google/service-account.json');
-
-        if (!$path) {
-            throw new \Exception('Google credentials JSON not found in storage.');
+        // 🔥 FIX: sebagian instalasi XAMPP/Windows tidak punya CA bundle terpasang di
+        // php.ini (curl.cainfo/openssl.cafile), yang bikin request ke oauth2.googleapis.com
+        // gagal dengan "SSL certificate ... unable to get local issuer certificate".
+        // Pakai CA bundle yang kita sertakan sendiri di storage supaya tidak bergantung
+        // konfigurasi PHP di server/komputer masing-masing.
+        $caBundlePath = storage_path('app/private/cacert.pem');
+        if (is_file($caBundlePath)) {
+            $client->setHttpClient(new GuzzleClient([
+                'verify' => $caBundlePath,
+            ]));
         }
 
-        // Decode JSON
-        $credentials = json_decode(file_get_contents($path), true);
-
-        if (!$credentials) {
-            throw new \Exception('Invalid Google credentials JSON format.');
-        }
+        $credentials = $this->resolveGoogleCredentials();
 
         // 🔥 FIX PENTING: normalize private key (atasi error OpenSSL)
         if (isset($credentials['private_key'])) {
@@ -89,6 +91,70 @@ class GoogleSheetController extends Controller
         $client->setAuthConfig($credentials);
 
         return $client;
+    }
+
+    /**
+     * Ambil kredensial service account Google, dengan urutan prioritas:
+     * 1. Env var GOOGLE_SERVICE_ACCOUNT_JSON berisi JSON mentah (disarankan untuk
+     *    deployment seperti Railway, supaya private key tidak perlu ikut di-commit ke git).
+     * 2. Env var GOOGLE_SERVICE_ACCOUNT_JSON berisi JSON dalam bentuk base64.
+     * 3. Env var GOOGLE_SERVICE_ACCOUNT_JSON berisi path ke file JSON (kompatibel dengan
+     *    konfigurasi lama).
+     * 4. File lokal storage/app/google/service-account.json (dev lokal / XAMPP).
+     * 5. File lokal storage/app/google-service-account.json (fallback lama).
+     */
+    protected function resolveGoogleCredentials(): array
+    {
+        $raw = trim((string) env('GOOGLE_SERVICE_ACCOUNT_JSON', ''));
+
+        if ($raw !== '') {
+            // 1) JSON mentah langsung di env var
+            if (str_starts_with($raw, '{')) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                throw new \Exception('GOOGLE_SERVICE_ACCOUNT_JSON berisi JSON yang tidak valid.');
+            }
+
+            // 2) JSON dalam bentuk base64
+            $maybeDecoded = base64_decode($raw, true);
+            if ($maybeDecoded !== false) {
+                $decoded = json_decode($maybeDecoded, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+
+            // 3) Dianggap path ke file JSON
+            if (is_file($raw)) {
+                $decoded = json_decode((string) file_get_contents($raw), true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                throw new \Exception("File kredensial Google di GOOGLE_SERVICE_ACCOUNT_JSON ({$raw}) berisi JSON yang tidak valid.");
+            }
+        }
+
+        // 4) & 5) Fallback ke file lokal (dev/XAMPP)
+        foreach ([
+            storage_path('app/google/service-account.json'),
+            storage_path('app/google-service-account.json'),
+        ] as $localPath) {
+            if (is_file($localPath)) {
+                $decoded = json_decode((string) file_get_contents($localPath), true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                throw new \Exception("File kredensial Google di {$localPath} berisi JSON yang tidak valid.");
+            }
+        }
+
+        throw new \Exception(
+            'Kredensial Google Service Account tidak ditemukan. Set environment variable ' .
+            'GOOGLE_SERVICE_ACCOUNT_JSON (isi JSON service account-nya), atau taruh filenya ' .
+            'di storage/app/google/service-account.json.'
+        );
     }
 
     protected function getSheetsService()

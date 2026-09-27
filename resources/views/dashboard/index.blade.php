@@ -15,25 +15,6 @@
             : 'Menunggu Approval';
     @endphp
     <div class="animate-fade-in {{ $isTeknik ? 'technical-dashboard-page' : '' }}">
-        {{-- Super Admin Bidang Tab Switcher --}}
-        @if(!empty($isSuperAdmin))
-        <div class="report-tabs mb-3 sa-bidang-tabs">
-            <a href="{{ route('dashboard', ['sa_bidang' => 'umum']) }}"
-                class="report-tab sa-bidang-tab {{ ($saBidang ?? '') !== 'teknik' ? 'active' : '' }}"
-                data-sa-bidang="umum"
-                data-sa-section="dashboardSection"
-                onclick="switchSaBidang('dashboardSection', this); return false;">
-                <i class="bi bi-building"></i> Dashboard Bidang Umum
-            </a>
-            <a href="{{ route('dashboard', ['sa_bidang' => 'teknik']) }}"
-                class="report-tab sa-bidang-tab {{ ($saBidang ?? '') === 'teknik' ? 'active' : '' }}"
-                data-sa-bidang="teknik"
-                data-sa-section="dashboardSection"
-                onclick="switchSaBidang('dashboardSection', this); return false;">
-                <i class="bi bi-tools"></i> Dashboard Bidang Teknik
-            </a>
-        </div>
-        @endif
         <!-- Stats Cards -->
         @if($isTeknik)
             <div class="technical-dashboard-cards mb-4">

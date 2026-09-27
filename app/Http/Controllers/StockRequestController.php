@@ -9,6 +9,7 @@ use App\Models\Item;
 use App\Models\StockRequest;
 use App\Models\StockRequestLine;
 use App\Support\InventoryMail;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -246,6 +247,54 @@ class StockRequestController extends Controller
         $filename = 'stock_request_' . now()->format('Y-m-d_His') . '.xlsx';
 
         return Excel::download(new StockRequestExport($request), $filename);
+    }
+
+    public function exportPdf(StockRequest $stockRequest)
+    {
+        $this->authorizeStockRequestDepartment($stockRequest);
+
+        // Samakan dengan halaman index: staf & admin Teknik hanya boleh melihat request miliknya sendiri
+        $actor = auth()->user();
+        if ($actor->isStaff() || ($actor->isAdmin() && $actor->isTeknik())) {
+            abort_unless((int) $stockRequest->user_id === (int) $actor->id, 403, 'Anda tidak memiliki akses ke stok request ini.');
+        }
+
+        abort_unless($stockRequest->status === 'approved', 403, 'Hanya stok request yang sudah approved yang dapat diexport ke PDF.');
+
+        $stockRequest->load(['lines.item', 'user', 'processor']);
+
+        $isTeknik = $stockRequest->bidang === 'teknik';
+
+        $lines = $stockRequest->lines->map(function (StockRequestLine $line) {
+            $price = (int) $line->price;
+            $quantity = (int) $line->quantity;
+
+            return [
+                'name' => $line->item->name ?? '-',
+                'no_normalisasi' => $line->item->no_normalisasi ?? '-',
+                'category' => $line->category ?: ($line->item->category ?? '-'),
+                'lokasi' => $line->item->lokasi ?? '-',
+                'ship_unloader' => $line->item->ship_unloader_label ?? '-',
+                'quantity' => $quantity,
+                'unit' => $line->item->unit ?? '',
+                'price' => $price,
+                'line_total' => $price * $quantity,
+                'description' => $line->description ?: '-',
+            ];
+        })->values();
+
+        $grandTotal = (int) $lines->sum('line_total');
+
+        $pdf = Pdf::loadView('stock-requests.pdf', [
+            'stockRequest' => $stockRequest,
+            'isTeknik' => $isTeknik,
+            'lines' => $lines,
+            'grandTotal' => $grandTotal,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'Stok_Request_' . $stockRequest->id . '_' . $stockRequest->created_at->format('Ymd') . '.pdf';
+
+        return $pdf->stream($filename);
     }
 
     public function destroy(StockRequest $stockRequest)

@@ -202,7 +202,7 @@
                                                         </button>
                                                     </form>
                                                 @endif
-                                                @if($actor->isSuperAdmin())
+                                                @if($actor->isSuperAdmin() || $actor->isAdmin())
                                                     <form action="{{ route('users.resetPassword', $user) }}" method="POST"
                                                         id="resetPasswordUser-{{ $user->id }}">
                                                         @csrf
@@ -315,7 +315,7 @@
                                 </div>
                             @endif
 
-                            <div class="row g-3 mb-3">
+                            <div class="row g-3 mb-3" id="userPasswordSection">
                                 <div class="col-md-6">
                                     <label class="form-label" id="userPasswordLabel">Password <span
                                             class="text-danger">*</span></label>
@@ -352,6 +352,11 @@
                                     </div>
                                 </div>
                             </div>
+                            @if(!$actor->isSuperAdmin())
+                                <p class="text-muted small mb-3" id="userPasswordRestrictedNote" style="display:none;">
+                                    Hanya Superadmin yang dapat mengubah password user lain. Gunakan aksi "Reset Password" untuk mengembalikan ke password default.
+                                </p>
+                            @endif
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -366,7 +371,7 @@
     @endif
 
     {{-- Reset Password Confirmation Modal --}}
-    @if($actor->isSuperAdmin())
+    @if($actor->isSuperAdmin() || $actor->isAdmin())
         <div class="modal fade inventrack-modal" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content" style="position:relative;">
@@ -408,6 +413,7 @@
             const userModal = new bootstrap.Modal(userModalEl);
             const isTeknikActorUser = @json($isTeknikActor);
             const defaultUserPassword = @json($defaultPassword);
+            const actorIsSuperAdmin = @json($actor->isSuperAdmin());
 
             function updateUserRoleOptions() {
                 const roleSelect = document.getElementById('userRole');
@@ -476,6 +482,17 @@
                     document.getElementById('userPassword').value = '';
                     document.getElementById('userPasswordConfirm').value = '';
 
+                    // Only Superadmin can change another user's password from the edit modal
+                    const userPasswordSection = document.getElementById('userPasswordSection');
+                    const userPasswordRestrictedNote = document.getElementById('userPasswordRestrictedNote');
+                    if (!actorIsSuperAdmin) {
+                        if (userPasswordSection) userPasswordSection.style.display = 'none';
+                        if (userPasswordRestrictedNote) userPasswordRestrictedNote.style.display = 'block';
+                    } else {
+                        if (userPasswordSection) userPasswordSection.style.display = '';
+                        if (userPasswordRestrictedNote) userPasswordRestrictedNote.style.display = 'none';
+                    }
+
                     const loading = document.getElementById('userLoading');
                     loading.classList.add('show');
                     userModal.show();
@@ -514,6 +531,13 @@
                     document.getElementById('userPasswordConfirm').placeholder = 'Ulangi default password';
                     document.getElementById('userPassword').setAttribute('required', 'required');
                     document.getElementById('userPasswordConfirm').setAttribute('required', 'required');
+
+                    // Password fields are always available when creating a new user
+                    const userPasswordSectionCreate = document.getElementById('userPasswordSection');
+                    const userPasswordRestrictedNoteCreate = document.getElementById('userPasswordRestrictedNote');
+                    if (userPasswordSectionCreate) userPasswordSectionCreate.style.display = '';
+                    if (userPasswordRestrictedNoteCreate) userPasswordRestrictedNoteCreate.style.display = 'none';
+
                     setUserPasswordFields();
                     updateUserRoleOptions();
                     userModal.show();
@@ -589,7 +613,7 @@
                 document.querySelectorAll('#userForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
             });
 
-            // Reset Password confirmation modal (superadmin only)
+            // Reset Password confirmation modal (superadmin & admin)
             const resetPasswordModalEl = document.getElementById('resetPasswordModal');
             let resetPasswordModal = null;
             let resetPasswordFormId = null;

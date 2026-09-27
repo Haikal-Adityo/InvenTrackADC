@@ -198,6 +198,15 @@
                     class="sidebar-link {{ request()->routeIs('stock.*') ? 'active' : '' }}">
                     <i class="bi bi-clipboard-data-fill"></i>
                     <span>Rekap Stok</span>
+                    @php
+                        $outOfStockSidebarCount = \App\Models\Item::visibleFor(auth()->user())
+                            ->get()
+                            ->filter(fn($item) => $item->current_stock <= 0)
+                            ->count();
+                    @endphp
+                    @if($outOfStockSidebarCount > 0)
+                        <span class="badge bg-warning text-dark">{{ $outOfStockSidebarCount }}</span>
+                    @endif
                 </a>
             @endif
 

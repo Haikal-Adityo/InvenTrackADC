@@ -80,18 +80,6 @@
                 </div>
 
                 <div class="header-actions d-flex align-items-center gap-2">
-                    <div class="report-tabs mb-0 me-2" style="background: transparent; border: none; padding: 0; gap: 0.5rem; display: flex;">
-                        <a href="{{ route('public.stuff-request', array_merge(request()->except(['bidang', 'page']), ['bidang' => 'umum'])) }}"
-                            class="report-tab {{ $activeBidang === 'umum' ? 'active' : '' }}" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; white-space: nowrap;">
-                            <i class="bi bi-building me-1"></i>
-                            General Affair
-                        </a>
-                        {{-- <a href="{{ route('public.stuff-request', array_merge(request()->except(['bidang', 'page']), ['bidang' => 'teknik'])) }}"
-                            class="report-tab {{ $activeBidang === 'teknik' ? 'active' : '' }}" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; white-space: nowrap;">
-                            <i class="bi bi-tools me-1"></i>
-                            SU-SpareTracker
-                        </a> --}}
-                    </div>
                     <button class="btn-theme-toggle" onclick="toggleTheme()" title="Ganti tema">
                         <i class="bi bi-sun-fill icon-sun"></i>
                         <i class="bi bi-moon-fill icon-moon"></i>

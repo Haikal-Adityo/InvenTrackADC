@@ -126,7 +126,7 @@
                                 <th>Barang</th>
                                 <th class="text-center">Status</th>
                                 <th>Diproses Oleh</th>
-                                <th class="text-center" style="width:72px;">Aksi</th>
+                                <th class="text-center" style="width:120px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -161,7 +161,7 @@
                                             <div class="small text-muted">{{ $stockRequest->processed_at->format('d/m/Y H:i') }}</div>
                                         @endif
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center" style="white-space:nowrap;">
                                         <button type="button"
                                             class="btn btn-sm btn-outline-primary btn-stock-request-detail-open"
                                             title="Rincian barang"
@@ -171,6 +171,12 @@
                                             data-form-reject="#rejectStockReq-{{ $stockRequest->id }}">
                                             <i class="bi bi-box-seam"></i>
                                         </button>
+                                        @if($stockRequest->status === 'approved')
+                                            <a href="{{ route('stock-requests.exportPdf', $stockRequest) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-pdf" title="Export PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                        @endif
                                         @if(((auth()->user()->isAdmin() && !$isTeknik) || (auth()->user()->isManager() && $isTeknik)) && $stockRequest->status === 'pending')
                                             <div class="d-none" aria-hidden="true">
                                                 <form action="{{ route('stock-requests.approve', $stockRequest) }}" method="POST" id="approveStockReq-{{ $stockRequest->id }}">

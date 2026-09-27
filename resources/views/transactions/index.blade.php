@@ -35,32 +35,6 @@
 
 @section('content')
     <div class="animate-fade-in {{ $isTeknik ? 'technical-transaction-page' : '' }}">
-        {{-- Super Admin Bidang Tab Switcher --}}
-        @if(!empty($isSuperAdmin))
-        <div class="report-tabs mb-3 sa-bidang-tabs">
-            <a href="{{ route('transactions.index', ['sa_bidang' => 'umum']) }}"
-                class="report-tab sa-bidang-tab {{ ($saBidang ?? '') !== 'teknik' ? 'active' : '' }}"
-                data-sa-bidang="umum"
-                data-sa-section="transactionsSection"
-                onclick="switchSection('transactionsSection', this); return false;">
-                <i class="bi bi-building"></i> Transaksi Umum
-            </a>
-            <a href="{{ route('transactions.index', ['sa_bidang' => 'teknik', 'type' => 'in']) }}"
-                class="report-tab sa-bidang-tab {{ (($saBidang ?? '') === 'teknik' && $activeTransactionType === 'in') ? 'active' : '' }}"
-                data-sa-bidang="teknik"
-                data-sa-section="transactionsReceiptSection"
-                onclick="switchSection('transactionsReceiptSection', this); return false;">
-                <i class="fa-solid fa-box-open"></i> Goods Receipt
-            </a>
-            <a href="{{ route('transactions.index', ['sa_bidang' => 'teknik', 'type' => 'out']) }}"
-                class="report-tab sa-bidang-tab {{ (($saBidang ?? '') === 'teknik' && $activeTransactionType === 'out') ? 'active' : '' }}"
-                data-sa-bidang="teknik"
-                data-sa-section="transactionsIssueSection"
-                onclick="switchSection('transactionsIssueSection', this); return false;">
-                <i class="fa-solid fa-dolly"></i> Goods Issue
-            </a>
-        </div>
-        @endif
         <!-- Header Actions Wrapper -->
         <div class="header-action-wrapper d-none">
             <div class="section-header-actions">

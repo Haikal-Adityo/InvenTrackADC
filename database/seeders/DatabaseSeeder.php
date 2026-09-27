@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
 
     private function seedUsers(): array
     {
-        $defaultPassword = 'adc.password';
+        $defaultPassword = '123456';
         $password = Hash::make($defaultPassword);
         $rows = [
             ['username' => 'superadmin', 'name' => 'Superadmin Inventory', 'email' => 'superadmin@inventory.com', 'role' => 'superadmin', 'bidang' => null, 'no_hp' => '081200000000'],
