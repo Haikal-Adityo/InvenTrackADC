@@ -40,7 +40,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Dashboard') - Nextlog</title>
+    <title>NEXTLOG | PT ARTHA DAYA COALINDO</title>
     <meta name="description" content="InvenTrack - Sistem Manajemen Inventory Modern">
 
     {{-- Open Graph / link preview (WhatsApp, dll) --}}
@@ -73,13 +73,16 @@
     <!-- Custom CSS -->
     <link href="{{ asset('css/custom.css') }}?v={{ filemtime(public_path('css/custom.css')) }}" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32.png') }}">
-    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset('images/favicon-48.png') }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/favicon-192.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}">
-    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    @php($iconV = max(filemtime(public_path('images/favicon-512.png')), filemtime(public_path('images/apple-touch-icon.png')), filemtime(public_path('images/pwa-icon-512.png'))))
+    <link rel="icon" href="{{ asset('favicon.ico') }}?v={{ $iconV }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16.png') }}?v={{ $iconV }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32.png') }}?v={{ $iconV }}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset('images/favicon-48.png') }}?v={{ $iconV }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/favicon-192.png') }}?v={{ $iconV }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ asset('images/favicon-512.png') }}?v={{ $iconV }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}?v={{ $iconV }}">
+    <link rel="manifest" href="{{ asset('manifest.json') }}?v={{ $iconV }}">
+    @include('partials.ios-splash')
     <meta name="theme-color" content="#198754">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sedang Pemeliharaan &ndash; NextLog</title>
+    <title>NEXTLOG | PT ARTHA DAYA COALINDO</title>
     <link rel="icon" href="/images/favicon-32.png" type="image/png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,7 +26,9 @@
         .card {
             width: 100%;
             max-width: 380px;
-            padding: 36px 28px;
+            padding: 36px 28px 28px;
+            position: relative;
+            overflow: hidden;
             text-align: center;
             border-radius: 16px;
             background:
@@ -37,11 +39,12 @@
             -webkit-backdrop-filter: blur(14px) saturate(160%);
             box-shadow: 0 10px 30px rgba(6, 78, 59, 0.08);
         }
-        .icon {
-            width: 44px;
-            height: 44px;
-            margin: 0 auto 16px;
-            color: #059669;
+        .logo {
+            display: block;
+            height: 96px;
+            width: auto;
+            max-width: 100%;
+            margin: 0 auto 22px;
         }
         h1 {
             font-size: 18px;
@@ -56,6 +59,8 @@
         }
         .brand {
             margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(6, 78, 59, 0.12);
             font-size: 11.5px;
             color: #6b7280;
             letter-spacing: 0.3px;
@@ -64,15 +69,13 @@
 </head>
 <body>
     @php
-        $maintenanceMessage = 'Sistem sedang diperbarui. Silakan coba lagi dalam beberapa menit.';
+        $maintenanceMessage = 'Mohon maaf, sistem sedang diperbarui. Silakan coba lagi dalam beberapa menit.';
         if (isset($exception) && method_exists($exception, 'getMessage') && $exception->getMessage() !== '') {
             $maintenanceMessage = $exception->getMessage();
         }
     @endphp
     <div class="card">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-        </svg>
+        <img class="logo" src="/images/logo-web.png" alt="NextLog">
         <h1>Sedang Pemeliharaan</h1>
         <p>{{ $maintenanceMessage }}</p>
         <div class="brand">NextLog &middot; PT Artha Daya Coalindo</div>

@@ -349,7 +349,7 @@ function updatePageHeading(title, subtitle) {
 
     if (title && pageTitle) pageTitle.textContent = title;
     if (pageSubtitle) pageSubtitle.textContent = subtitle || '';
-    if (title) document.title = `${title} - Nextlog`;
+    if (title) document.title = 'NEXTLOG | PT ARTHA DAYA COALINDO';
 }
 
 function closeMobileSidebarAfterNavigation() {

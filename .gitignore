@@ -44,6 +44,7 @@ phpunit.xml.bak
 
 # ── Deployment / project-specific ───────────────────────
 /_deploy
+deploy-zip.ps1
 
 # ── Logs & debug ────────────────────────────────────────
 *.log

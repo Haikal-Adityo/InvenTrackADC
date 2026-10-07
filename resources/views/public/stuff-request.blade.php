@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Rekap Stok & Permintaan Barang - NextLog</title>
+    <title>NEXTLOG | PT ARTHA DAYA COALINDO</title>
     <meta name="description" content="Lihat rekap stok barang dan ajukan stuff request tanpa login">
 
     {{-- Open Graph / link preview (WhatsApp, dll) --}}
@@ -37,6 +37,7 @@
 
     <!-- Icon NextLog -->
     <link rel="icon" type="image/png" href="{{ asset('images/favicon-512.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/apple-touch-icon.png') }}?v={{ filemtime(public_path('images/apple-touch-icon.png')) }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#198754">
     <meta name="mobile-web-app-capable" content="yes">
