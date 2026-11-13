@@ -169,6 +169,8 @@ class StockRequestController extends Controller
             return $createdStockRequests;
         });
 
+        \App\Support\InventoryNotifier::stokRequestBaru($createdStockRequests);
+
         $recipients = InventoryMail::gaadmNotificationRecipients();
         if ($recipients === []) {
             Log::warning('Email Request Stock Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
@@ -204,6 +206,8 @@ class StockRequestController extends Controller
             'processed_at' => now(),
         ]);
 
+        \App\Support\InventoryNotifier::stokRequestDiproses($stockRequest);
+
         $recipients = InventoryMail::gaadmNotificationRecipients();
         if ($recipients === []) {
             Log::warning('Email approval Stock Request tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
@@ -238,6 +242,8 @@ class StockRequestController extends Controller
             'processed_by' => auth()->id(),
             'processed_at' => now(),
         ]);
+
+        \App\Support\InventoryNotifier::stokRequestDiproses($stockRequest);
 
         return back()->with('success', 'Stock request berhasil ditolak.');
     }

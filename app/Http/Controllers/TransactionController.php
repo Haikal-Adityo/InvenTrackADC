@@ -157,7 +157,13 @@ class TransactionController extends Controller
         $validated['approved_at'] = $item->bidang === 'teknik' ? now() : null;
         $validated['price'] = $item->bidang === 'teknik' ? null : ($validated['price'] ?? null);
 
-        Transaction::create($validated);
+        $transaction = Transaction::create($validated);
+
+        // Notifikasi: Umum pending → admin; Teknik langsung approved → cek stok rendah
+        \App\Support\InventoryNotifier::transaksiBaru($transaction);
+        if ($transaction->status === 'approved' && $transaction->type === 'out') {
+            \App\Support\InventoryNotifier::cekStokRendah([$transaction->item_id]);
+        }
 
         $successMsg = $item->bidang === 'teknik'
             ? 'Transaksi Teknik berhasil ditambahkan dan otomatis approved.'
@@ -346,6 +352,11 @@ class TransactionController extends Controller
             'approved_at' => now(),
         ]);
 
+        \App\Support\InventoryNotifier::transaksiDiproses([$transaction], 'approved');
+        if ($transaction->type === 'out') {
+            \App\Support\InventoryNotifier::cekStokRendah([$transaction->item_id]);
+        }
+
         return back()->with('success', 'Transaksi berhasil disetujui.');
     }
 
@@ -362,6 +373,8 @@ class TransactionController extends Controller
             'approved_by' => auth()->id(),
             'approved_at' => now(),
         ]);
+
+        \App\Support\InventoryNotifier::transaksiDiproses([$transaction], 'rejected');
 
         return back()->with('success', 'Transaksi berhasil ditolak.');
     }

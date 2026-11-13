@@ -120,3 +120,11 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     // Google Sheets sync - admin only
     Route::post('/sync/sheets', [GoogleSheetController::class, 'fullSync'])->name('sync.sheets')->middleware('userAkses:admin');
 });
+
+// Web Push + badge ikon aplikasi — semua role (di luar RestrictTeknikAccess supaya user Teknik juga bisa)
+Route::middleware('auth')->group(function () {
+    Route::post('/push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe');
+    Route::post('/push/check', [\App\Http\Controllers\PushSubscriptionController::class, 'check'])->name('push.check');
+    Route::get('/push/badge', [\App\Http\Controllers\PushSubscriptionController::class, 'badge'])->name('push.badge');
+    Route::post('/notifications/read-path', [\App\Http\Controllers\NotificationController::class, 'readPath'])->name('notifications.read-path');
+});

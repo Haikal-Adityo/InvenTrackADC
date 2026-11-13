@@ -40,6 +40,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- Web Push + badge ikon aplikasi (public/js/nl-push.js) --}}
+    @php
+        $nlPushKey = (auth()->check() && in_array(auth()->user()->role, config('webpush.roles', []), true) && \App\Support\WebPush::enabled())
+            ? config('webpush.public_key') : '';
+        try {
+            $nlUnreadCount = auth()->check() ? auth()->user()->unreadNotifications()->count() : 0;
+        } catch (\Throwable $e) {
+            $nlUnreadCount = 0; // tabel notifications belum dimigrasi
+        }
+    @endphp
+    <meta name="nl-push-key" content="{{ $nlPushKey }}">
+    <meta name="nl-user-id" content="{{ auth()->id() }}">
+    <meta name="nl-unread-count" content="{{ $nlUnreadCount }}">
     <title>NEXTLOG | PT ARTHA DAYA COALINDO</title>
     <meta name="description" content="InvenTrack - Sistem Manajemen Inventory Modern">
 
@@ -73,7 +86,9 @@
     <!-- Custom CSS -->
     <link href="{{ asset('css/custom.css') }}?v={{ filemtime(public_path('css/custom.css')) }}" rel="stylesheet">
     <!-- Favicon -->
-    @php($iconV = max(filemtime(public_path('images/favicon-512.png')), filemtime(public_path('images/apple-touch-icon.png')), filemtime(public_path('images/pwa-icon-512.png'))))
+    @php
+        $iconV = max(filemtime(public_path('images/favicon-512.png')), filemtime(public_path('images/apple-touch-icon.png')), filemtime(public_path('images/pwa-icon-512.png')));
+    @endphp
     <link rel="icon" href="{{ asset('favicon.ico') }}?v={{ $iconV }}" sizes="any">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16.png') }}?v={{ $iconV }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32.png') }}?v={{ $iconV }}">
@@ -402,6 +417,17 @@
         };
     </script>
     @vite('resources/js/app.js')
+
+    <script>
+        window.nlPushConfig = {
+            sw: @json(asset('sw.js')),
+            subscribe: @json(route('push.subscribe')),
+            check: @json(route('push.check')),
+            badge: @json(route('push.badge')),
+            readPath: @json(route('notifications.read-path')),
+        };
+    </script>
+    <script src="{{ asset('js/nl-push.js') }}?v={{ filemtime(public_path('js/nl-push.js')) }}" defer></script>
 
     @stack('scripts')
 </body>

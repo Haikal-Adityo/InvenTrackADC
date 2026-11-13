@@ -137,7 +137,9 @@ class UserController extends Controller
 
         $validated['account_status'] = ($actor->isSuperAdmin() || $actor->isTeknik()) ? 'approved' : 'pending';
 
-        User::create($validated);
+        $newUser = User::create($validated);
+
+        \App\Support\InventoryNotifier::akunBaru($newUser);
 
         $successMsg = $validated['account_status'] === 'approved'
             ? 'User berhasil ditambahkan dan langsung aktif.'
@@ -234,6 +236,8 @@ class UserController extends Controller
 
         $user->update(['account_status' => 'approved']);
 
+        \App\Support\InventoryNotifier::akunDiproses($user);
+
         return back()->with('success', "Akun {$user->name} berhasil di-approve.");
     }
 
@@ -250,6 +254,8 @@ class UserController extends Controller
         }
 
         $user->update(['account_status' => 'rejected']);
+
+        \App\Support\InventoryNotifier::akunDiproses($user);
 
         return back()->with('success', "Akun {$user->name} berhasil di-reject.");
     }

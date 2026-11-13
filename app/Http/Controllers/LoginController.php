@@ -78,6 +78,20 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
+        // Logout manual = berhenti menerima push di perangkat/sesi ini (perangkat lain tetap aktif).
+        // Login lagi di perangkat ini → otomatis terdaftar ulang tanpa popup.
+        if ($userId = $request->user()?->id) {
+            try {
+                \App\Models\PushSubscription::query()
+                    ->where('user_id', $userId)
+                    ->where('session_id', $request->session()->getId())
+                    ->delete();
+            } catch (\Throwable $e) {
+                // Logout tidak boleh gagal hanya karena urusan push (mis. tabel belum dimigrasi)
+                \Illuminate\Support\Facades\Log::warning('Hapus langganan push saat logout gagal: '.$e->getMessage());
+            }
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

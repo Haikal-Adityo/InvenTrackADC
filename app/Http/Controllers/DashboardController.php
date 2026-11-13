@@ -330,6 +330,10 @@ class DashboardController extends Controller
             $count++;
         }
 
+        // Notifikasi: tandai tugas approval selesai, kabari pembuat transaksi, cek stok rendah
+        \App\Support\InventoryNotifier::transaksiDiproses($transactions, 'approved');
+        \App\Support\InventoryNotifier::cekStokRendah($transactions->where('type', 'out')->pluck('item_id'));
+
         // Check low stock alerts after approval
         $itemIds = $transactions->pluck('item_id')->unique();
         foreach ($itemIds as $itemId) {
@@ -372,13 +376,21 @@ class DashboardController extends Controller
         $request->validate(['date' => 'required|date']);
         $date = $request->date;
 
-        $count = Transaction::visibleFor(auth()->user())->pending()
+        $rejectedTransactions = Transaction::visibleFor(auth()->user())->pending()
             ->whereDate('date', $date)
+            ->get();
+
+        $count = $rejectedTransactions->isEmpty() ? 0 : Transaction::query()
+            ->whereIn('id', $rejectedTransactions->pluck('id'))
             ->update([
                 'status' => 'rejected',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
+
+        if ($count > 0) {
+            \App\Support\InventoryNotifier::transaksiDiproses($rejectedTransactions, 'rejected');
+        }
 
         if ($count === 0) {
             return back()->with('error', 'Tidak ada transaksi pending untuk tanggal ini.');

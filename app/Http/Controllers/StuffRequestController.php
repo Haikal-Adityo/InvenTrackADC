@@ -400,6 +400,8 @@ class StuffRequestController extends Controller
             return $stuffRequest;
         });
 
+        \App\Support\InventoryNotifier::permintaanBaru($stuffRequest);
+
         $recipients = InventoryMail::gaadmNotificationRecipients();
         if ($recipients === []) {
             Log::warning('Email Permintaan Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
@@ -527,6 +529,8 @@ class StuffRequestController extends Controller
             'processed_at' => now(),
         ]);
 
+        \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
+
         return back()->with('success', "Permintaan barang dari {$stuffRequest->requester_name} telah disetujui.");
     }
 
@@ -547,6 +551,8 @@ class StuffRequestController extends Controller
             'processed_by' => auth()->id(),
             'processed_at' => now(),
         ]);
+
+        \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
 
         return back()->with('success', "Permintaan barang dari {$stuffRequest->requester_name} telah ditolak.");
     }
@@ -613,6 +619,9 @@ class StuffRequestController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
+        \App\Support\InventoryNotifier::cekStokRendah($stuffRequest->lines->pluck('item_id'));
+
         return back()->with('success', "Permintaan barang dari {$stuffRequest->requester_name} telah diselesaikan dan transaksi OUT approved otomatis dibuat.");
     }
 
@@ -638,6 +647,8 @@ class StuffRequestController extends Controller
             'completed_by' => auth()->id(),
             'completed_at' => now(),
         ]);
+
+        \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
 
         return back()->with('success', "Permintaan barang dari {$stuffRequest->requester_name} telah dibatalkan.");
     }

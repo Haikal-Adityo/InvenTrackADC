@@ -7885,3 +7885,59 @@ td.col-name-wrap {
         min-width: 0 !important;
     }
 }
+/* ================================================================
+   Kartu ajakan aktifkan notifikasi push (public/js/nl-push.js)
+   ================================================================ */
+.nl-push-prompt {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1090;
+    display: flex;
+    gap: 14px;
+    width: min(380px, calc(100vw - 32px));
+    padding: 16px;
+    background: var(--card-bg, #fff);
+    color: var(--text-primary, #1a1a2e);
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow-lg, 0 10px 40px rgba(0, 0, 0, 0.08));
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .25s ease, transform .25s ease;
+}
+.nl-push-prompt.is-show { opacity: 1; transform: translateY(0); }
+.nl-push-prompt-icon {
+    flex: 0 0 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    color: var(--primary, #10b981);
+    background: var(--primary-bg, rgba(16, 185, 129, 0.08));
+}
+.nl-push-prompt.is-blocked .nl-push-prompt-icon {
+    color: var(--warning-dark, #d97706);
+    background: var(--warning-bg, rgba(245, 158, 11, 0.08));
+}
+.nl-push-prompt-body strong { display: block; font-size: .95rem; margin-bottom: 4px; }
+.nl-push-prompt-body p { margin: 0 0 12px; font-size: .85rem; line-height: 1.45; color: var(--text-secondary, #6c757d); }
+.nl-push-prompt-actions { display: flex; gap: 8px; }
+.nl-push-prompt-actions button {
+    border: 0;
+    border-radius: var(--radius-sm, 8px);
+    padding: 8px 16px;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.nl-push-prompt-ok { background: var(--primary, #10b981); color: #fff; }
+.nl-push-prompt-ok:hover { background: var(--primary-dark, #059669); }
+.nl-push-prompt-ok:disabled { opacity: .7; cursor: wait; }
+.nl-push-prompt-later { background: transparent; color: var(--text-secondary, #6c757d); }
+.nl-push-prompt-later:hover { background: var(--border-color, #e9ecef); }
+@media (max-width: 576px) {
+    .nl-push-prompt { right: 16px; left: 16px; bottom: 16px; width: auto; }
+}

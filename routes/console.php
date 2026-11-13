@@ -117,3 +117,69 @@ Artisan::command('mail:test {email? : Alamat tujuan (default: email user admin u
 
     return 0;
 })->purpose('Uji koneksi SMTP / pengiriman email');
+
+/*
+ * Buat pasangan kunci VAPID untuk Web Push. Jalankan SEKALI, lalu salin ke .env
+ * lokal dan production (harus sama; kalau berubah, semua perangkat harus daftar ulang).
+ */
+Artisan::command('webpush:vapid', function () {
+    if (! class_exists(\Minishlink\WebPush\VAPID::class)) {
+        $this->error('Jalankan dulu: composer require minishlink/web-push');
+
+        return 1;
+    }
+    $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+    $this->line('Tambahkan ke .env:');
+    $this->line('VAPID_PUBLIC_KEY='.$keys['publicKey']);
+    $this->line('VAPID_PRIVATE_KEY='.$keys['privateKey']);
+    $this->line('VAPID_SUBJECT=mailto:'.config('mail.from.address'));
+
+    return 0;
+})->purpose('Buat kunci VAPID untuk Web Push');
+
+/*
+ * Notifikasi dummy untuk uji (push HP + badge ikon).
+ * Contoh: php artisan notif:test adminumum --count=3 --url=/dashboard
+ */
+Artisan::command('notif:test {username : Username penerima} {--count=1} {--url=/dashboard}', function () {
+    $user = User::where('username', $this->argument('username'))->first();
+    if (! $user) {
+        $this->error('User tidak ditemukan.');
+
+        return 1;
+    }
+    $n = max(1, (int) $this->option('count'));
+    for ($i = 1; $i <= $n; $i++) {
+        $user->notify(new \App\Notifications\AppNotification(
+            'Tes Notifikasi NextLog #'.$i,
+            'Ini notifikasi dummy pukul '.now()->format('H:i:s').'.',
+            (string) $this->option('url'),
+            ['kind' => 'test'],
+        ));
+    }
+    $devices = \App\Models\PushSubscription::where('user_id', $user->id)->count();
+    $this->info("Terkirim {$n} notifikasi ke {$user->username} ("
+        .(\App\Support\WebPush::enabled() ? "push ke {$devices} perangkat)" : 'push nonaktif: library/VAPID belum siap)').'.');
+
+    return 0;
+})->purpose('Kirim notifikasi dummy ke user (uji push/badge)');
+
+/* Hapus notifikasi dummy: php artisan notif:clear [username] [--all] */
+Artisan::command('notif:clear {username?} {--all : hapus SEMUA notifikasi user, bukan hanya dummy}', function () {
+    $q = \Illuminate\Notifications\DatabaseNotification::query();
+    if ($u = $this->argument('username')) {
+        $user = User::where('username', $u)->first();
+        if (! $user) {
+            $this->error('User tidak ditemukan.');
+
+            return 1;
+        }
+        $q->where('notifiable_type', $user->getMorphClass())->where('notifiable_id', $user->id);
+    }
+    if (! $this->option('all')) {
+        $q->where('data', 'like', '%"kind":"test"%');
+    }
+    $this->info($q->delete().' notifikasi dihapus.');
+
+    return 0;
+})->purpose('Hapus notifikasi dummy');
