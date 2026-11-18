@@ -95,6 +95,7 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     Route::get('/Stok-request', [StockRequestController::class, 'index'])->name('stock-requests.index')->middleware('userAkses:admin,manajer,staf');
     Route::post('/Stok-request', [StockRequestController::class, 'store'])->name('stock-requests.store')->middleware('userAkses:admin,staf');
     Route::get('/Stok-request/export', [StockRequestController::class, 'export'])->name('stock-requests.export')->middleware('userAkses:admin,manajer,staf');
+    Route::get('/Stok-request/export-pdf', [StockRequestController::class, 'exportAllPdf'])->name('stock-requests.exportAllPdf')->middleware('userAkses:admin,manajer,staf');
     Route::get('/Stok-request/{stockRequest}/export-pdf', [StockRequestController::class, 'exportPdf'])->name('stock-requests.exportPdf')->middleware('userAkses:admin,manajer,staf');
     Route::post('/Stok-request/{stockRequest}/approve', [StockRequestController::class, 'approve'])->name('stock-requests.approve')->middleware('userAkses:admin,manajer');
     Route::post('/Stok-request/{stockRequest}/reject', [StockRequestController::class, 'reject'])->name('stock-requests.reject')->middleware('userAkses:admin,manajer');

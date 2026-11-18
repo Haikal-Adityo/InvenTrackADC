@@ -512,7 +512,7 @@
                             <span class="badge bg-danger">{{ $lowStockItems->count() }}</span>
                         @endif
                     </div>
-                    <div class="card-body" style="max-height:350px; overflow-y:auto;">
+                    <div class="card-body dashboard-scroll-body">
                         @forelse($lowStockItems as $item)
                                 @php
                                     $totalMasuk = $item->transactions()->masuk()->approved()->sum('quantity');
@@ -595,7 +595,7 @@
                             </form>
                         @endif
                     </div>
-                    <div class="card-body" style="max-height:350px; overflow-y:auto;">
+                    <div class="card-body dashboard-scroll-body">
                         @forelse($recentTransactions as $tx)
                             <div class="d-flex align-items-start gap-3 py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
                                 <div

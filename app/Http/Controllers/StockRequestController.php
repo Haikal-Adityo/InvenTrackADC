@@ -21,32 +21,7 @@ class StockRequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = StockRequest::with(['lines.item', 'user', 'processor'])
-            ->visibleFor(auth()->user())
-            ->latest();
-
-        if (auth()->user()->isStaff() || (auth()->user()->isAdmin() && auth()->user()->isTeknik())) {
-            $query->where('user_id', auth()->id());
-        }
-
-        if ($request->filled('year')) {
-            $query->whereYear('created_at', $request->year);
-        }
-
-        if ($request->filled('month')) {
-            $query->whereMonth('created_at', $request->month);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('category')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('category', $request->category)
-                    ->orWhereHas('lines.item', fn($lineQuery) => $lineQuery->where('category', $request->category));
-            });
-        }
+        $query = $this->filteredQuery($request);
 
         $stockRequests = $query->paginate(15)->withQueryString();
         $categories = Item::visibleFor(auth()->user())->select('category')->distinct()->orderBy('category')->pluck('category');
@@ -250,9 +225,75 @@ class StockRequestController extends Controller
 
     public function export(Request $request)
     {
-        $filename = 'stock_request_' . now()->format('Y-m-d_His') . '.xlsx';
+        $request->validate(['status' => 'nullable|in:pending,approved,rejected']);
 
-        return Excel::download(new StockRequestExport($request), $filename);
+        $suffix = $request->filled('status') ? '_' . $request->status : '';
+        $filename = 'stock_request' . $suffix . '_' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(new StockRequestExport($this->filteredQuery($request)), $filename);
+    }
+
+    public function exportAllPdf(Request $request)
+    {
+        $request->validate(['status' => 'nullable|in:pending,approved,rejected']);
+
+        $stockRequests = $this->filteredQuery($request)->get();
+        $user = auth()->user();
+        $isTeknik = $user->bidang === 'teknik';
+
+        $rows = $stockRequests->flatMap(function (StockRequest $stockRequest) {
+            return $stockRequest->lines->map(function (StockRequestLine $line) use ($stockRequest) {
+                $price = (int) $line->price;
+                $quantity = (int) $line->quantity;
+
+                return [
+                    'request_id' => $stockRequest->id,
+                    'date' => $stockRequest->created_at->format('d/m/Y'),
+                    'requester' => $stockRequest->user->name ?? '-',
+                    'name' => $line->item->name ?? '-',
+                    'no_normalisasi' => $line->item->no_normalisasi ?? '-',
+                    'ship_unloader' => $line->item->ship_unloader_label ?? '-',
+                    'category' => $line->category ?: ($line->item->category ?? '-'),
+                    'quantity' => $quantity,
+                    'unit' => $line->item->unit ?? '',
+                    'price' => $price,
+                    'line_total' => $price * $quantity,
+                    'status' => $stockRequest->status,
+                    'processor' => $stockRequest->processor->name ?? '-',
+                ];
+            });
+        })->values();
+
+        $statusCounts = [
+            'pending' => $stockRequests->where('status', 'pending')->count(),
+            'approved' => $stockRequests->where('status', 'approved')->count(),
+            'rejected' => $stockRequests->where('status', 'rejected')->count(),
+        ];
+
+        $months = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+
+        $filters = [
+            'status' => $request->filled('status') ? ucfirst($request->status) : 'Semua Status',
+            'periode' => trim(($request->filled('month') ? ($months[(int) $request->month] ?? '') . ' ' : '') . ($request->year ?: ($request->filled('month') ? '' : 'Semua Periode'))),
+            'category' => $request->category ?: 'Semua Kategori',
+        ];
+
+        $pdf = Pdf::loadView('stock-requests.pdf-list', [
+            'rows' => $rows,
+            'totalRequests' => $stockRequests->count(),
+            'statusCounts' => $statusCounts,
+            'grandTotal' => (int) $rows->sum('line_total'),
+            'filters' => $filters,
+            'isTeknik' => $isTeknik,
+            'bidang' => $user->isSuperAdmin() ? 'SEMUA BIDANG' : 'BIDANG ' . strtoupper($user->bidang ?? '-'),
+            'printedBy' => $user->name,
+        ])->setPaper('a4', 'landscape');
+
+        $suffix = $request->filled('status') ? '_' . ucfirst($request->status) : '';
+        $filename = 'Rekap_Stok_Request' . $suffix . '_' . now()->format('Ymd_His') . '.pdf';
+
+        return $pdf->stream($filename);
     }
 
     public function exportPdf(StockRequest $stockRequest)
@@ -310,6 +351,29 @@ class StockRequestController extends Controller
         $stockRequest->delete();
 
         return back()->with('success', 'Riwayat stock request berhasil dihapus.');
+    }
+
+    /**
+     * Query stok request sesuai hak akses user + filter (tahun, bulan, status, kategori).
+     * Dipakai bersama oleh halaman index, export Excel, dan export PDF supaya datanya selalu konsisten.
+     */
+    private function filteredQuery(Request $request)
+    {
+        $user = auth()->user();
+
+        return StockRequest::with(['lines.item', 'user', 'processor'])
+            ->visibleFor($user)
+            ->when($user->isStaff() || ($user->isAdmin() && $user->isTeknik()), fn($query) => $query->where('user_id', $user->id))
+            ->when($request->filled('year'), fn($query) => $query->whereYear('created_at', $request->year))
+            ->when($request->filled('month'), fn($query) => $query->whereMonth('created_at', $request->month))
+            ->when($request->filled('status'), fn($query) => $query->where('status', $request->status))
+            ->when($request->filled('category'), function ($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('category', $request->category)
+                        ->orWhereHas('lines.item', fn($lineQuery) => $lineQuery->where('category', $request->category));
+                });
+            })
+            ->latest();
     }
 
     private function authorizeStockRequestDepartment(StockRequest $stockRequest): void

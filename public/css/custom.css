@@ -6133,6 +6133,15 @@ body::before,
     overflow: visible !important;
 }
 
+/* Pengecualian: daftar di dashboard (Stok Menipis, Transaksi Terbaru) harus tetap bisa di-scroll
+   di dalam card. Tanpa ini isinya meluber ke belakang card berikutnya (terlihat "ngebayang" di mobile). */
+.card-body.dashboard-scroll-body {
+    max-height: 350px;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* Style tambahan untuk item di dalam suggestion agar rapi */
 .autocomplete-item {
     padding: 10px 14px !important;

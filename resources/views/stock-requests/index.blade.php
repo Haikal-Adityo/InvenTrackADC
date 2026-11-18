@@ -6,7 +6,6 @@
 @section('content')
     @php
         $isTeknik = auth()->user()->bidang === 'teknik';
-        $exportParams = request()->except('page');
         $stockRequestDetailData = [];
 
         foreach ($stockRequests as $requestRow) {
@@ -94,11 +93,18 @@
                                 title="Reset Filter">
                                 <i class="bi bi-arrow-counterclockwise fs-5"></i>
                             </a>
-                            <a href="{{ route('stock-requests.export', $exportParams) }}" 
-                                class="btn btn-success btn-sm w-100"
-                                style="flex: 1 1 auto !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;">
-                                <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Excel
-                            </a>
+<button type="button"
+                                class="btn btn-success btn-sm btn-stock-request-export"
+                                data-export-format="excel"
+                                style="flex: 1 1 auto !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap;">
+                                <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel
+                            </button>
+                            <button type="button"
+                                class="btn btn-danger btn-sm btn-stock-request-export"
+                                data-export-format="pdf"
+                                style="flex: 1 1 auto !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap;">
+                                <i class="bi bi-file-earmark-pdf-fill me-1"></i> PDF
+                            </button>
                         </div>
                     </div>
                 </form>
@@ -287,7 +293,94 @@
             </div>
         </div>
     </div>
+    {{-- Modal pilihan export (Excel / PDF) --}}
+    <div class="modal fade inventrack-modal" id="stockRequestExportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="GET" id="stockRequestExportForm" action="{{ route('stock-requests.export') }}"
+                    data-excel-action="{{ route('stock-requests.export') }}"
+                    data-pdf-action="{{ route('stock-requests.exportAllPdf') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-download me-2"></i><span id="stockRequestExportTitle">Export Stok Request</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                    </div>
+                    <div class="modal-body">
+                        @foreach(['year', 'month', 'category'] as $keptFilter)
+                            @if(request()->filled($keptFilter))
+                                <input type="hidden" name="{{ $keptFilter }}" value="{{ request($keptFilter) }}">
+                            @endif
+                        @endforeach
+
+                        <label class="form-label fw-600" for="stockRequestExportStatus">Status yang diexport</label>
+                        <select name="status" id="stockRequestExportStatus" class="form-select">
+                            <option value="">Semua Status</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                            <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                        </select>
+
+                        @php
+                            $activeFilterLabels = collect([
+                                request()->filled('year') ? 'Tahun ' . request('year') : null,
+                                request()->filled('month') ? ($months[(int) request('month')] ?? null) : null,
+                                request()->filled('category') ? 'Kategori ' . request('category') : null,
+                            ])->filter();
+                        @endphp
+                        <div class="small text-muted mt-2">
+                            @if($activeFilterLabels->isNotEmpty())
+                                Filter halaman yang ikut terpakai: <strong>{{ $activeFilterLabels->join(', ') }}</strong>.
+                            @else
+                                Semua periode dan kategori akan ikut diexport.
+                            @endif
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success" id="stockRequestExportSubmit">
+                            <i class="bi bi-download me-1"></i>Export
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+    <script>
+        (function () {
+            const modalEl = document.getElementById('stockRequestExportModal');
+            const form = document.getElementById('stockRequestExportForm');
+            if (!modalEl || !form) return;
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            const title = document.getElementById('stockRequestExportTitle');
+            const submitBtn = document.getElementById('stockRequestExportSubmit');
+
+            // Tombol bisa dipindah ke topbar oleh app.js, jadi pakai event delegation
+            document.addEventListener('click', function (event) {
+                const trigger = event.target.closest('.btn-stock-request-export');
+                if (!trigger) return;
+
+                const isPdf = trigger.dataset.exportFormat === 'pdf';
+                form.action = isPdf ? form.dataset.pdfAction : form.dataset.excelAction;
+                form.target = isPdf ? '_blank' : '_self';
+                title.textContent = isPdf ? 'Export Stok Request ke PDF' : 'Export Stok Request ke Excel';
+                submitBtn.className = 'btn ' + (isPdf ? 'btn-danger' : 'btn-success');
+                submitBtn.innerHTML = isPdf
+                    ? '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Export PDF'
+                    : '<i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel';
+                modal.show();
+            });
+
+            form.addEventListener('submit', function () {
+                setTimeout(function () { modal.hide(); }, 150);
+            });
+        })();
+    </script>
+@endpush
 
 @push('scripts')
     <script>

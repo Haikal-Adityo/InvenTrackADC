@@ -3,7 +3,7 @@
 namespace App\Exports;
 
 use App\Models\StockRequest;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -14,25 +14,16 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class StockRequestExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    public function __construct(private Request $request)
+    /**
+     * @param Builder $query Query yang sudah difilter (hak akses + filter halaman/modal) dari StockRequestController.
+     */
+    public function __construct(private Builder $query)
     {
     }
 
     public function collection(): Collection
     {
-        return StockRequest::with(['lines.item', 'user', 'processor'])
-            ->visibleFor(auth()->user())
-            ->when(auth()->user()->isStaff(), fn($query) => $query->where('user_id', auth()->id()))
-            ->when($this->request->filled('year'), fn($query) => $query->whereYear('created_at', $this->request->year))
-            ->when($this->request->filled('month'), fn($query) => $query->whereMonth('created_at', $this->request->month))
-            ->when($this->request->filled('status'), fn($query) => $query->where('status', $this->request->status))
-            ->when($this->request->filled('category'), function ($query) {
-                $query->where(function ($q) {
-                    $q->where('category', $this->request->category)
-                        ->orWhereHas('lines.item', fn($lineQuery) => $lineQuery->where('category', $this->request->category));
-                });
-            })
-            ->orderByDesc('created_at')
+        return $this->query
             ->get()
             ->flatMap(function (StockRequest $stockRequest) {
                 return $stockRequest->lines->map(fn($line) => (object) [
