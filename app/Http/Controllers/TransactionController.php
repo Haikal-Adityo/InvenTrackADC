@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NewTransactionNotification;
 use App\Models\Item;
+use App\Support\InventoryMail;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 
@@ -161,6 +163,14 @@ class TransactionController extends Controller
 
         // Notifikasi: Umum pending → admin; Teknik langsung approved → cek stok rendah
         \App\Support\InventoryNotifier::transaksiBaru($transaction);
+        if ($transaction->status === 'pending') {
+            InventoryMail::sendTo(
+                InventoryMail::approverRecipients($transaction->bidang),
+                new NewTransactionNotification($transaction),
+                'Transaksi baru',
+                ['transaction_id' => $transaction->id]
+            );
+        }
         if ($transaction->status === 'approved' && $transaction->type === 'out') {
             \App\Support\InventoryNotifier::cekStokRendah([$transaction->item_id]);
         }

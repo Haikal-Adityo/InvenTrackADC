@@ -11,7 +11,7 @@
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Barang</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $transaction->item->name }}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Jenis</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ strtoupper($transaction->type) }}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Jumlah</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $transaction->quantity }} {{ $transaction->item->unit }}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Diinput oleh</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $transaction->user->name }}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Diinput oleh</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $transaction->user?->name ?? 'Input publik' }}</td></tr>
         </table>
         <p>Silakan login ke <a href="{{ url('/dashboard') }}" style="color: #10b981;">{{ $appName }}</a> untuk melakukan approval.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">

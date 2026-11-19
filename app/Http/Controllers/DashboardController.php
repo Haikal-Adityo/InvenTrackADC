@@ -165,8 +165,9 @@ class DashboardController extends Controller
 
         // Pending transactions grouped by date (for admin daily approval)
         $pendingByDate = [];
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || auth()->user()->isSuperAdmin()) {
             $pendingByDate = Transaction::visibleFor($user)->pending()
+                ->where('bidang', '!=', 'teknik')
                 ->with(['item', 'user'])
                 ->orderBy('date', 'desc')
                 ->get()
@@ -303,7 +304,10 @@ class DashboardController extends Controller
         $request->validate(['date' => 'required|date']);
         $date = $request->date;
 
-        $transactions = Transaction::visibleFor(auth()->user())->pending()->whereDate('date', $date)->get();
+        $transactions = Transaction::visibleFor(auth()->user())->pending()
+            ->where('bidang', '!=', 'teknik')
+            ->whereDate('date', $date)
+            ->get();
 
         if ($transactions->isEmpty()) {
             return back()->with('error', 'Tidak ada transaksi pending untuk tanggal ini.');
@@ -377,6 +381,7 @@ class DashboardController extends Controller
         $date = $request->date;
 
         $rejectedTransactions = Transaction::visibleFor(auth()->user())->pending()
+            ->where('bidang', '!=', 'teknik')
             ->whereDate('date', $date)
             ->get();
 

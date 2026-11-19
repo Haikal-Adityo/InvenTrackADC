@@ -3,7 +3,10 @@
 namespace App\Support;
 
 use App\Models\User;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 final class InventoryMail
 {
@@ -42,23 +45,66 @@ final class InventoryMail
     }
 
     /**
-     * Alamat notifikasi GAADM (config inventory.gaadm_mail / env GAADM_NOTIFICATION_MAIL).
-     * Sementara diarahkan ke email testing, nanti diganti ke email GAADM asli.
+     * Email approver sesuai alur approval, diambil dari database (bukan .env):
+     * - Umum  → semua user role "admin" bidang umum
+     * - Teknik → semua user role "manajer" bidang teknik
+     * - Superadmin ikut menerima email bidang Umum
+     * Hanya akun berstatus approved dengan email valid.
      *
      * @return list<string>
      */
-    public static function gaadmNotificationRecipients(): array
+    public static function approverRecipients(?string $bidang): array
     {
-        $email = config('inventory.gaadm_mail');
-        if (!is_string($email)) {
-            return [];
+        $bidang = $bidang ?: 'umum';
+        $role = $bidang === 'teknik' ? 'manajer' : 'admin';
+
+        return self::emailsOf(
+            User::query()
+                ->where(function ($q) use ($role, $bidang) {
+                    $q->where(fn ($q) => $q->where('role', $role)->where('bidang', $bidang));
+                    // Superadmin ikut menerima email approval bidang Umum
+                    if ($bidang === 'umum') {
+                        $q->orWhere('role', 'superadmin');
+                    }
+                })
+                ->where('account_status', 'approved')
+                ->whereNotNull('email')
+                ->pluck('email')
+        );
+    }
+
+    /**
+     * Kirim mailable ke tiap penerima (satu email per alamat), error dicatat ke log.
+     *
+     * @param  list<string>  $recipients
+     */
+    public static function sendTo(array $recipients, Mailable $mail, string $context, array $meta = []): void
+    {
+        if ($recipients === []) {
+            Log::warning("Email {$context} tidak dikirim: tidak ada penerima (cek user role/bidang/email/account_status di database).", $meta);
+            return;
         }
 
-        $email = strtolower(trim($email));
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return [];
+        foreach ($recipients as $email) {
+            try {
+                Mail::to($email)->send($mail);
+            } catch (\Throwable $e) {
+                Log::error("Gagal kirim email {$context}", $meta + ['to' => $email, 'message' => $e->getMessage()]);
+            }
         }
+    }
 
-        return [$email];
+    /**
+     * @param  Collection<int, string|null>  $emails
+     * @return list<string>
+     */
+    private static function emailsOf(Collection $emails): array
+    {
+        return $emails
+            ->map(fn ($e) => strtolower(trim((string) $e)))
+            ->filter(fn (string $e) => $e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

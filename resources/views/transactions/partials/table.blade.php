@@ -200,7 +200,7 @@
                                     <td>{{ $tx->item->unit ?? '-' }}</td>
                                     <td>{{ $tx->price === null ? '-' : 'Rp ' . number_format($tx->price, 0, ',', '.') }}</td>
                                     <td>{{ $tx->user->name ?? '-' }}</td>
-                                    <td style="max-width:220px; font-size:12px; color:var(--text-secondary);">
+                                    <td style="min-width:200px; max-width:260px; white-space:normal; word-break:break-word; line-height:1.4; font-size:12px; color:var(--text-secondary);">
                                         {{ \Illuminate\Support\Str::limit($tx->description, 60) }}
                                     </td>
                                     @if(auth()->user()->isSuperAdmin())

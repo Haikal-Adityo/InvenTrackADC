@@ -146,20 +146,14 @@ class StockRequestController extends Controller
 
         \App\Support\InventoryNotifier::stokRequestBaru($createdStockRequests);
 
-        $recipients = InventoryMail::gaadmNotificationRecipients();
-        if ($recipients === []) {
-            Log::warning('Email Request Stock Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
-        } else {
-            foreach ($recipients as $email) {
-                try {
-                    Mail::to($email)->send(new StockRequestSubmitted($createdStockRequests));
-                } catch (\Throwable $e) {
-                    Log::error('Gagal kirim email Request Stock Barang', [
-                        'to' => $email,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            }
+        // Email ke approver per bidang (Umum → admin umum, Teknik → manajer teknik)
+        foreach ($createdStockRequests->groupBy('bidang') as $bidang => $group) {
+            InventoryMail::sendTo(
+                InventoryMail::approverRecipients($bidang),
+                new StockRequestSubmitted($group->values()),
+                'Stok Request baru',
+                ['stock_request_ids' => $group->pluck('id')->all()]
+            );
         }
 
         return redirect()->route('stock-requests.index')
@@ -183,22 +177,14 @@ class StockRequestController extends Controller
 
         \App\Support\InventoryNotifier::stokRequestDiproses($stockRequest);
 
-        $recipients = InventoryMail::gaadmNotificationRecipients();
-        if ($recipients === []) {
-            Log::warning('Email approval Stock Request tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
-        } else {
-            foreach ($recipients as $email) {
-                try {
-                    Mail::to($email)->send(new StockRequestApproved($stockRequest));
-                } catch (\Throwable $e) {
-                    Log::error('Gagal kirim email approval Stock Request', [
-                        'to' => $email,
-                        'stock_request_id' => $stockRequest->id,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            }
-        }
+        // Email hasil approval ke staf pembuat request
+        $owner = $stockRequest->user;
+        InventoryMail::sendTo(
+            $owner && $owner->email ? [strtolower(trim($owner->email))] : [],
+            new StockRequestApproved($stockRequest),
+            'approval Stok Request',
+            ['stock_request_id' => $stockRequest->id]
+        );
 
         return back()->with('success', 'Stock request berhasil disetujui.');
     }

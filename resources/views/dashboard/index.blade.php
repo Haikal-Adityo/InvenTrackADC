@@ -142,7 +142,7 @@
         @endif
 
         {{-- ADMIN: Pending Transactions Approval (Per Hari) --}}
-        @if(!$isTeknik && auth()->user()->isAdmin() && $pendingByDate->count() > 0)
+        @if(!$isTeknik && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin()) && $pendingByDate->count() > 0)
             <div class="card mb-4">
                 <div class="card-header">
                     <span><i class="bi bi-check2-square text-warning-custom me-2"></i>Transaksi Menunggu Approval</span>
@@ -691,7 +691,7 @@
     </style>
 
     {{-- Transaction Edit Modal --}}
-    @if(auth()->user()->isAdmin())
+    @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
         <div class="modal fade inventrack-modal {{ $isTeknik ? 'technical-transaction-modal' : '' }}" id="dashTxModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content" style="position:relative;">
@@ -1309,7 +1309,7 @@
         });
 
         // ===== Transaction Edit Modal (Dashboard) =====
-        @if(auth()->user()->isAdmin())
+        @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
             const dashTxModalEl = document.getElementById('dashTxModal');
             const dashTxModal = dashTxModalEl ? new bootstrap.Modal(dashTxModalEl) : null;
 
@@ -1477,7 +1477,7 @@
         window.updateChartTheme = updateChartTheme;
         window.changeMonthlyChart = changeMonthlyChart;
         window.changeYearRange = changeYearRange;
-        @if(auth()->user()->isAdmin())
+        @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
             window.openTxEditModal = openTxEditModal;
             window.submitDashTxForm = submitDashTxForm;
         @endif

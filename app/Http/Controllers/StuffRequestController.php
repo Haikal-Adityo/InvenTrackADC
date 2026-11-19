@@ -402,22 +402,12 @@ class StuffRequestController extends Controller
 
         \App\Support\InventoryNotifier::permintaanBaru($stuffRequest);
 
-        $recipients = InventoryMail::gaadmNotificationRecipients();
-        if ($recipients === []) {
-            Log::warning('Email Permintaan Barang tidak dikirim: GAADM_NOTIFICATION_MAIL belum diset di .env.');
-        } else {
-            foreach ($recipients as $email) {
-                try {
-                    Mail::to($email)->send(new StuffRequestSubmitted($stuffRequest));
-                } catch (\Throwable $e) {
-                    Log::error('Gagal kirim email Permintaan Barang', [
-                        'to' => $email,
-                        'stuff_request_id' => $stuffRequest->id,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            }
-        }
+        InventoryMail::sendTo(
+            InventoryMail::approverRecipients($stuffRequest->bidang),
+            new StuffRequestSubmitted($stuffRequest),
+            'Permintaan Barang',
+            ['stuff_request_id' => $stuffRequest->id]
+        );
 
         return redirect()->route('public.stuff-request', ['bidang' => $validated['bidang']])
             ->with('success', 'Permintaan barang berhasil dikirim! Permintaan Anda akan ditinjau oleh Admin.');
