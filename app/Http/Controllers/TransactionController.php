@@ -161,19 +161,22 @@ class TransactionController extends Controller
 
         $transaction = Transaction::create($validated);
 
-        // Notifikasi: Umum pending → admin; Teknik langsung approved → cek stok rendah
-        \App\Support\InventoryNotifier::transaksiBaru($transaction);
-        if ($transaction->status === 'pending') {
-            InventoryMail::sendTo(
-                InventoryMail::approverRecipients($transaction->bidang),
-                new NewTransactionNotification($transaction),
-                'Transaksi baru',
-                ['transaction_id' => $transaction->id]
-            );
-        }
-        if ($transaction->status === 'approved' && $transaction->type === 'out') {
-            \App\Support\InventoryNotifier::cekStokRendah([$transaction->item_id]);
-        }
+        // Notifikasi: Umum pending → admin; Teknik langsung approved → cek stok rendah.
+        // Dikirim setelah response agar form tidak tertahan menunggu SMTP.
+        dispatch(function () use ($transaction) {
+            \App\Support\InventoryNotifier::transaksiBaru($transaction);
+            if ($transaction->status === 'pending') {
+                InventoryMail::sendTo(
+                    InventoryMail::approverRecipients($transaction->bidang),
+                    new NewTransactionNotification($transaction),
+                    'Transaksi baru',
+                    ['transaction_id' => $transaction->id]
+                );
+            }
+            if ($transaction->status === 'approved' && $transaction->type === 'out') {
+                \App\Support\InventoryNotifier::cekStokRendah([$transaction->item_id]);
+            }
+        })->afterResponse();
 
         $successMsg = $item->bidang === 'teknik'
             ? 'Transaksi Teknik berhasil ditambahkan dan otomatis approved.'

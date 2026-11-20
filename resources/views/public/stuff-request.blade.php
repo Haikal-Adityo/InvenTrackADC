@@ -1892,6 +1892,39 @@
             refreshStockValidation();
         })();
 
+        // Cegah double submit: kunci tombol setelah form benar-benar terkirim
+        (function() {
+            ['requestForm', 'publicGRForm', 'publicGIForm'].forEach(function(id) {
+                const form = document.getElementById(id);
+                if (!form) return;
+
+                form.addEventListener('submit', function(event) {
+                    if (event.defaultPrevented) return; // gagal validasi di handler lain
+                    if (form.dataset.submitting === '1') {
+                        event.preventDefault();
+                        return;
+                    }
+                    form.dataset.submitting = '1';
+                    form.querySelectorAll('button[type="submit"]').forEach(function(btn) {
+                        btn.dataset.originalHtml = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Mengirim...';
+                    });
+                });
+            });
+
+            // Reset bila user kembali lewat tombol Back (bfcache)
+            window.addEventListener('pageshow', function() {
+                document.querySelectorAll('form[data-submitting="1"]').forEach(function(form) {
+                    delete form.dataset.submitting;
+                    form.querySelectorAll('button[type="submit"]').forEach(function(btn) {
+                        btn.disabled = false;
+                        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+                    });
+                });
+            });
+        })();
+
         // SweetAlert2 Toast
         const Toast = Swal.mixin({
             toast: true,

@@ -8,7 +8,9 @@ use App\Models\StuffRequest;
 use App\Models\Transaction;
 use App\Support\InventoryMail;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -387,30 +389,80 @@ class StuffRequestController extends Controller
             ]);
         }
 
-        $stuffRequest = DB::transaction(function () use ($validated, $mergedByItem) {
-            $validated['status'] = 'pending';
-            $stuffRequest = StuffRequest::create($validated);
-            foreach ($mergedByItem as $itemId => $quantity) {
-                $stuffRequest->lines()->create([
-                    'item_id' => $itemId,
-                    'quantity' => $quantity,
-                ]);
+        // Cegah double submit: kunci per NIP + bidang, lalu cek request identik
+        // dari pemohon yang sama dalam beberapa menit terakhir.
+        $lock = Cache::lock('stuff-request-submit:' . md5($validated['nip'] . '|' . $validated['bidang']), 15);
+
+        try {
+            $lock->block(10);
+        } catch (LockTimeoutException $e) {
+            return redirect()->route('public.stuff-request', ['bidang' => $validated['bidang']])
+                ->with('error', 'Permintaan Anda sedang diproses. Silakan tunggu sebentar.');
+        }
+
+        try {
+            if ($this->findRecentDuplicateRequest($validated, $mergedByItem)) {
+                return redirect()->route('public.stuff-request', ['bidang' => $validated['bidang']])
+                    ->with('success', 'Permintaan barang Anda sudah terkirim sebelumnya, tidak perlu dikirim ulang.');
             }
 
-            return $stuffRequest;
-        });
+            $stuffRequest = DB::transaction(function () use ($validated, $mergedByItem) {
+                $validated['status'] = 'pending';
+                $stuffRequest = StuffRequest::create($validated);
+                foreach ($mergedByItem as $itemId => $quantity) {
+                    $stuffRequest->lines()->create([
+                        'item_id' => $itemId,
+                        'quantity' => $quantity,
+                    ]);
+                }
 
-        \App\Support\InventoryNotifier::permintaanBaru($stuffRequest);
+                return $stuffRequest;
+            });
+        } finally {
+            $lock->release();
+        }
 
-        InventoryMail::sendTo(
-            InventoryMail::approverRecipients($stuffRequest->bidang),
-            new StuffRequestSubmitted($stuffRequest),
-            'Permintaan Barang',
-            ['stuff_request_id' => $stuffRequest->id]
-        );
+        // Notifikasi & email dikirim setelah response terkirim ke browser,
+        // supaya halaman tidak tertahan menunggu SMTP (penyebab user klik ulang).
+        dispatch(function () use ($stuffRequest) {
+            \App\Support\InventoryNotifier::permintaanBaru($stuffRequest);
+
+            InventoryMail::sendTo(
+                InventoryMail::approverRecipients($stuffRequest->bidang),
+                new StuffRequestSubmitted($stuffRequest),
+                'Permintaan Barang',
+                ['stuff_request_id' => $stuffRequest->id]
+            );
+        })->afterResponse();
 
         return redirect()->route('public.stuff-request', ['bidang' => $validated['bidang']])
             ->with('success', 'Permintaan barang berhasil dikirim! Permintaan Anda akan ditinjau oleh Admin.');
+    }
+
+    /**
+     * Cari request identik (NIP, bidang, barang & jumlah sama) yang dibuat
+     * dalam beberapa menit terakhir, untuk mencegah double submit.
+     */
+    private function findRecentDuplicateRequest(array $validated, array $mergedByItem, int $minutes = 5): ?StuffRequest
+    {
+        $expected = $mergedByItem;
+        ksort($expected);
+
+        return StuffRequest::with('lines')
+            ->where('nip', $validated['nip'])
+            ->where('bidang', $validated['bidang'])
+            ->where('created_at', '>=', now()->subMinutes($minutes))
+            ->whereIn('status', ['pending', 'approved'])
+            ->latest('id')
+            ->get()
+            ->first(function (StuffRequest $existing) use ($expected) {
+                $lines = $existing->lines
+                    ->mapWithKeys(fn ($line) => [(int) $line->item_id => (int) $line->quantity])
+                    ->all();
+                ksort($lines);
+
+                return $lines === $expected;
+            });
     }
 
     /**
@@ -565,7 +617,14 @@ class StuffRequestController extends Controller
         $stuffRequest->load('lines.item');
 
         try {
-            DB::transaction(function () use ($stuffRequest) {
+            DB::transaction(function () use ($stuffRequest, $allowedStatus) {
+                // Kunci baris request agar klik "Selesaikan" ganda / bersamaan
+                // tidak membuat transaksi OUT dua kali.
+                $locked = StuffRequest::whereKey($stuffRequest->id)->lockForUpdate()->first();
+                if (! $locked || $locked->status !== $allowedStatus) {
+                    throw new \RuntimeException('Request ini sudah diproses.');
+                }
+
                 foreach ($stuffRequest->lines as $line) {
                     if ($line->item && $line->item->current_stock < $line->quantity) {
                         throw new \RuntimeException("Stok {$line->item->name} tidak mencukupi.");

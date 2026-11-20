@@ -200,11 +200,14 @@
                                     <td>{{ $tx->item->unit ?? '-' }}</td>
                                     <td>{{ $tx->price === null ? '-' : 'Rp ' . number_format($tx->price, 0, ',', '.') }}</td>
                                     <td>{{ $tx->user->name ?? '-' }}</td>
-                                    <td style="min-width:200px; max-width:260px; white-space:normal; word-break:break-word; line-height:1.4; font-size:12px; color:var(--text-secondary);">
-                                        {{ \Illuminate\Support\Str::limit($tx->description, 60) }}
+                                    <td style="min-width:200px; max-width:260px; font-size:12px; color:var(--text-secondary);">
+                                        <div title="{{ $tx->description }}"
+                                            style="max-width:260px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal; word-break:break-word; line-height:1.4;">
+                                            {{ $tx->description }}
+                                        </div>
                                     </td>
                                     @if(auth()->user()->isSuperAdmin())
-                                        <td>
+                                        <td class="text-nowrap">
                                             @if($tx->status === 'pending')
                                                 <span class="badge-status badge-pending">
                                                     <i class="bi bi-clock-fill"></i> Pending
