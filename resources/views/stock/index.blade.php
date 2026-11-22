@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Rekap Stok')
-@section('subtitle', 'Ringkasan stok barang saat ini')
+@section('subtitle', 'Catat barang masuk dan keluar, lalu pantau batas minimum stok.')
 
 @section('content')
     @php
@@ -95,6 +95,17 @@
             </div>
         </div>
 
+        @unless($isTeknik)
+            @php $soPending = \App\Models\StockOpname::visibleFor(auth()->user())->where('status', 'submitted')->count(); @endphp
+            <div class="item-tabs mb-3">
+                <a href="{{ route('stock.index') }}" class="item-tab active"><i class="bi bi-clipboard-data"></i> Rekap Stok</a>
+                <a href="{{ route('stock.opname.index') }}" class="item-tab">
+                    <i class="bi bi-clipboard-check"></i> Stok Opname
+                    @if($soPending > 0)<span class="badge bg-warning text-dark ms-1">{{ $soPending }}</span>@endif
+                </a>
+            </div>
+        @endunless
+
         <!-- Table -->
         <div class="card">
             <div class="card-header flex-wrap gap-2">
@@ -117,8 +128,8 @@
                                     <th>Satuan</th>
                                     <th class="text-center">Total Masuk</th>
                                     <th class="text-center">Total Keluar</th>
-                                    <th class="text-center">Stok Saat Ini</th>
-                                    <th class="text-center">Min Stok</th>
+                                    <th class="text-center">Stok</th>
+                                    <th class="text-center">Minimum</th>
                                     <th>Status</th>
                                 </tr>
                             @else
@@ -129,8 +140,8 @@
                                     <th>Satuan</th>
                                     <th class="text-center">Total Masuk</th>
                                     <th class="text-center">Total Keluar</th>
-                                    <th class="text-center">Stok Saat Ini</th>
-                                    <th class="text-center">Min Stok</th>
+                                    <th class="text-center">Stok</th>
+                                    <th class="text-center">Minimum</th>
                                     <th>Status</th>
                                 </tr>
                             @endif
@@ -280,6 +291,17 @@
                         @error('lines')
                             <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:12px;">{{ $message }}</div>
                         @enderror
+                        @unless($isTeknik)
+                            <div class="stock-request-period mb-3">
+                                <label class="form-label fw-600 mb-1"><i class="bi bi-calendar-range me-1"></i>Periode Kebutuhan</label>
+                                <div id="srNeedMonthGlobal" style="max-width:220px;"></div>
+                                @error('need_month')<div class="text-danger mt-1" style="font-size:12px;">{{ $message }}</div>@enderror
+                                <div class="form-text" style="font-size:11.5px;">Bulan pemakaian barang yang diajukan.</div>
+                            </div>
+                        @endunless
+                        @if($errors->has('lines.*'))
+                            <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:12px;">{{ collect($errors->get('lines.*'))->flatten()->first() }}</div>
+                        @endif
                         <div id="stockRequestCategoryGroups" class="d-flex flex-column gap-3"></div>
                         <div id="stockRequestEmptyState" class="empty-state d-none" style="padding:30px 10px;">
                             <i class="bi bi-check-circle" style="font-size:40px;color:var(--success);"></i>
@@ -307,6 +329,77 @@
         window.__stockRequestItems = @json($stockRequestItems);
         window.__stockRequestReadonly = @json(auth()->user()->isAdmin() && !$isTeknik);
         window.__stockRequestIsTeknik = @json($isTeknik);
+
+        // Month picker (tidak bergantung dukungan <input type="month"> browser) — dipakai per barang
+        window.srMonthPicker = (function () {
+            const names = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const short = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const now = new Date();
+            const defaultValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const parse = (v) => { const [y, m] = String(v || '').split('-').map(Number); return { y: y || now.getFullYear(), m: m || now.getMonth() + 1 }; };
+            const labelOf = (v) => { const p = parse(v); return `${names[p.m - 1]} ${p.y}`; };
+
+            function html(value, disabled, name) {
+                value = value || defaultValue;
+                return `
+                    <div class="dropdown sr-month-picker">
+                        <input type="hidden" ${name ? `name="${name}"` : 'data-name="need_month"'} class="sr-month-value" value="${value}">
+                        <button type="button" class="sr-month-trigger" data-bs-toggle="dropdown" aria-expanded="false"
+                            data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' ${disabled ? 'disabled' : ''}>
+                            <i class="bi bi-calendar3"></i>
+                            <span class="sr-month-label">${labelOf(value)}</span>
+                            <i class="bi bi-chevron-down sr-month-caret"></i>
+                        </button>
+                        <div class="dropdown-menu sr-month-menu">
+                            <div class="sr-month-head">
+                                <button type="button" class="sr-month-nav" data-step="-1" aria-label="Tahun sebelumnya"><i class="bi bi-chevron-left"></i></button>
+                                <strong class="sr-month-year"></strong>
+                                <button type="button" class="sr-month-nav" data-step="1" aria-label="Tahun berikutnya"><i class="bi bi-chevron-right"></i></button>
+                            </div>
+                            <div class="sr-month-grid"></div>
+                        </div>
+                    </div>`;
+            }
+
+            function bind(picker) {
+                if (!picker || picker.dataset.bound) return;
+                picker.dataset.bound = '1';
+                const input = picker.querySelector('.sr-month-value');
+                const label = picker.querySelector('.sr-month-label');
+                const yearEl = picker.querySelector('.sr-month-year');
+                const grid = picker.querySelector('.sr-month-grid');
+                let sel = parse(input.value);
+                let viewYear = sel.y;
+
+                const render = () => {
+                    yearEl.textContent = viewYear;
+                    grid.innerHTML = short.map((n, i) => `<button type="button" class="sr-month-cell${viewYear === sel.y && i + 1 === sel.m ? ' is-active' : ''}" data-month="${i + 1}">${n}</button>`).join('');
+                };
+                picker.querySelectorAll('.sr-month-nav').forEach((b) => b.addEventListener('click', () => { viewYear += Number(b.dataset.step); render(); }));
+                grid.addEventListener('click', (e) => {
+                    const cell = e.target.closest('.sr-month-cell');
+                    if (!cell) return;
+                    sel = { y: viewYear, m: Number(cell.dataset.month) };
+                    input.value = `${sel.y}-${String(sel.m).padStart(2, '0')}`;
+                    label.textContent = labelOf(input.value);
+                    render();
+                    const trigger = picker.querySelector('[data-bs-toggle="dropdown"]');
+                    if (window.bootstrap && trigger) bootstrap.Dropdown.getOrCreateInstance(trigger).hide();
+                });
+                picker.addEventListener('show.bs.dropdown', () => { sel = parse(input.value); viewYear = sel.y; render(); });
+                render();
+            }
+
+            return { html, bind };
+        })();
+
+        // Periode Kebutuhan global (1 bulan untuk seluruh barang dalam request)
+        (function () {
+            const holder = document.getElementById('srNeedMonthGlobal');
+            if (!holder) return;
+            holder.innerHTML = window.srMonthPicker.html(@json(old('need_month')), window.__stockRequestReadonly, 'need_month');
+            window.srMonthPicker.bind(holder.querySelector('.sr-month-picker'));
+        })();
 
         (function () {
             const modalEl = document.getElementById('stockRequestModal');
@@ -351,7 +444,7 @@
                 section.innerHTML = `
                     <div class="stock-request-category-header">
                         <div>
-                            <div class="stock-request-category-title">${category || 'Tanpa Kategori'}</div>
+                            <div class="stock-request-category-title">${escapeHtml(category || 'Tanpa Kategori')}</div>
                             <div class="stock-request-category-subtitle">${items.length} barang perlu diajukan</div>
                         </div>
                     </div>
@@ -373,7 +466,7 @@
                                 ` : `
                                     <tr>
                                         <th style="min-width:220px;">Nama Barang</th>
-                                        <th style="width:150px;">Harga Barang</th>
+                                        <th style="width:240px;">Harga Barang</th>
                                         <th style="width:120px;">Jumlah</th>
                                         <th style="min-width:180px;">Keterangan</th>
                                         <th style="width:70px;" class="text-center">Hapus</th>
@@ -393,6 +486,86 @@
                 return section;
             }
 
+            function escapeHtml(v) {
+                return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            }
+
+            // Referensi = Stok Request approved terakhir yang berisi barang ini (info saja)
+            function referenceInfo(item) {
+                const ref = item.pricing && item.pricing.reference;
+                return ref && ref.number
+                    ? `<div class="small mt-1" style="color:var(--text-secondary);"><i class="bi bi-link-45deg"></i>[REF: ${escapeHtml(ref.number)}]</div>`
+                    : '';
+            }
+
+            // Opsi harga dari riwayat: terakhir (Stok Request / Transaksi IN) + tertinggi
+            function priceOptions(item) {
+                const p = item.pricing || {};
+                const opts = [];
+                if (p.last_sr) opts.push({ price: p.last_sr.price, title: 'Harga terakhir', source: 'Stok Request', ref: p.last_sr.number || '' });
+                if (p.last_in) opts.push({ price: p.last_in.price, title: 'Harga terakhir', source: 'Transaksi IN', ref: p.last_in.date || '' });
+                if (p.highest) {
+                    const same = opts.find((o) => o.price === p.highest.price);
+                    if (same) {
+                        same.highest = true;
+                    } else {
+                        const [src, ...rest] = String(p.highest.source || '').split(/ (?=ADC-|\d{2}\/)/);
+                        opts.push({ price: p.highest.price, title: 'Harga tertinggi', source: src || 'Riwayat', ref: rest.join(' '), highest: true });
+                    }
+                }
+                return opts;
+            }
+
+            function sourceIcon(source) {
+                return source === 'Transaksi IN' ? 'bi-box-arrow-in-down' : 'bi-cart-check';
+            }
+
+            function metaHtml(opt) {
+                if (!opt) {
+                    return '<span class="sr-price-source is-manual"><i class="bi bi-pencil"></i>Harga manual</span>';
+                }
+                return `<span class="sr-price-source"><i class="bi ${sourceIcon(opt.source)}"></i>${escapeHtml(opt.source)}${opt.ref ? ' · ' + escapeHtml(opt.ref) : ''}</span>`
+                    + (opt.highest ? '<span class="sr-price-badge">Tertinggi</span>' : '');
+            }
+
+            function priceCell(item, readonlyAttrs, disabledAttrs) {
+                const opts = priceOptions(item);
+                const first = opts[0] || null;
+                const initial = first ? first.price : (item.price || 0);
+                const menu = opts.length > 1 && !window.__stockRequestReadonly ? `
+                    <div class="dropdown sr-price-dropdown">
+                        <button type="button" class="sr-price-switch" data-bs-toggle="dropdown" aria-expanded="false"
+                            data-bs-popper-config='{"strategy":"fixed"}'>
+                            Ganti <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end sr-price-menu">
+                            <li class="sr-price-menu-head">Pilih dari riwayat harga</li>
+                            ${opts.map((o, i) => `
+                                <li>
+                                    <button type="button" class="dropdown-item sr-price-option" data-index="${i}">
+                                        <span class="sr-price-option-top">
+                                            <strong>Rp ${formatNumber(o.price)}</strong>
+                                            ${o.highest ? '<span class="sr-price-badge">Tertinggi</span>' : ''}
+                                        </span>
+                                        <span class="sr-price-option-sub"><i class="bi ${sourceIcon(o.source)}"></i>${escapeHtml(o.title)} · ${escapeHtml(o.source)}${o.ref ? ' · ' + escapeHtml(o.ref) : ''}</span>
+                                    </button>
+                                </li>`).join('')}
+                        </ul>
+                    </div>` : '';
+
+                return `
+                    <div class="sr-price" data-options='${escapeHtml(JSON.stringify(opts))}'>
+                        <label class="sr-price-field ${first ? '' : 'sr-price-missing'}">
+                            <span class="sr-price-prefix">${first ? 'Rp' : '<i class="bi bi-exclamation-triangle-fill" title="Belum ada riwayat harga — isi manual"></i>'}</span>
+                            <input type="number" data-name="price" class="sr-price-input" min="0" step="1" value="${initial}" ${readonlyAttrs} required>
+                        </label>
+                        <div class="sr-price-meta">
+                            <span class="sr-price-meta-text">${first ? metaHtml(first) : '<span class="sr-price-source is-warning">Belum ada riwayat harga</span>'}</span>
+                            ${menu}
+                        </div>
+                    </div>`;
+            }
+
             function buildRow(item) {
                 const tr = document.createElement('tr');
                 tr.className = 'stock-request-line-row';
@@ -406,15 +579,15 @@
                 tr.innerHTML = window.__stockRequestIsTeknik ? `
                     <td>
                         <input type="hidden" data-name="item_id" value="${item.id}">
-                        <input type="text" class="form-control form-control-sm fw-600" value="${item.no_normalisasi || '-'}" readonly>
+                        <input type="text" class="form-control form-control-sm fw-600" value="${escapeHtml(item.no_normalisasi || '-')}" readonly>
                     </td>
                     <td>
-                        <input type="text" class="form-control form-control-sm fw-600" value="${item.name}" readonly>
+                        <input type="text" class="form-control form-control-sm fw-600" value="${escapeHtml(item.name)}" readonly>
                         <div class="small text-muted mt-1">${statusLabel} - stok ${formatNumber(item.current_stock)} ${item.unit || ''}</div>
                         ${pendingWarning}
                     </td>
-                    <td><input type="text" class="form-control form-control-sm" value="${item.ship_unloader || '-'}" readonly></td>
-                    <td><input type="text" class="form-control form-control-sm" value="${item.lokasi || '-'}" readonly></td>
+                    <td><input type="text" class="form-control form-control-sm" value="${escapeHtml(item.ship_unloader || '-')}" readonly></td>
+                    <td><input type="text" class="form-control form-control-sm" value="${escapeHtml(item.lokasi || '-')}" readonly></td>
                     <td><input type="text" class="form-control form-control-sm" value="${formatNumber(item.current_stock)}" readonly></td>
                     <td>
                         <input type="number" data-name="price" class="form-control form-control-sm" min="0" step="1" value="${item.price || 0}" ${readonlyAttrs} required>
@@ -433,12 +606,13 @@
                 ` : `
                     <td>
                         <input type="hidden" data-name="item_id" value="${item.id}">
-                        <input type="text" class="form-control form-control-sm fw-600" value="${item.name}" readonly>
+                        <input type="text" class="form-control form-control-sm fw-600" value="${escapeHtml(item.name)}" readonly>
                         <div class="small text-muted mt-1">${statusLabel} - stok ${formatNumber(item.current_stock)} ${item.unit || ''}</div>
+                        ${referenceInfo(item)}
                         ${pendingWarning}
                     </td>
                     <td>
-                        <input type="number" data-name="price" class="form-control form-control-sm" min="0" step="1" value="${item.price || 0}" ${readonlyAttrs} required>
+                        ${priceCell(item, readonlyAttrs, disabledAttrs)}
                     </td>
                     <td>
                         <input type="number" data-name="quantity" class="form-control form-control-sm" min="1" value="1" ${readonlyAttrs} required>
@@ -452,6 +626,28 @@
                         </button>
                     </td>
                 `;
+
+                const priceWrap = tr.querySelector('.sr-price');
+                const priceInput = tr.querySelector('input[data-name="price"]');
+                if (priceWrap && priceInput) {
+                    let opts = [];
+                    try { opts = JSON.parse(priceWrap.dataset.options || '[]'); } catch (_) {}
+                    const metaText = priceWrap.querySelector('.sr-price-meta-text');
+                    const refreshMeta = () => {
+                        if (!opts.length || !metaText) return;
+                        const match = opts.find((o) => Number(o.price) === Number(priceInput.value));
+                        metaText.innerHTML = metaHtml(match || null);
+                    };
+                    priceWrap.querySelectorAll('.sr-price-option').forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            const o = opts[Number(btn.dataset.index)];
+                            if (!o) return;
+                            priceInput.value = o.price;
+                            refreshMeta();
+                        });
+                    });
+                    priceInput.addEventListener('input', refreshMeta);
+                }
 
                 const removeBtn = tr.querySelector('.btn-remove-stock-request-line');
                 if (removeBtn && !window.__stockRequestReadonly) {

@@ -74,6 +74,23 @@ final class InventoryMail
     }
 
     /**
+     * Email manajer bidang (penyetuju tahap 2 Stok Request Umum).
+     *
+     * @return list<string>
+     */
+    public static function managerRecipients(?string $bidang): array
+    {
+        return self::emailsOf(
+            User::query()
+                ->where('role', 'manajer')
+                ->where('bidang', $bidang ?: 'umum')
+                ->where('account_status', 'approved')
+                ->whereNotNull('email')
+                ->pluck('email')
+        );
+    }
+
+    /**
      * Kirim mailable ke tiap penerima (satu email per alamat), error dicatat ke log.
      *
      * @param  list<string>  $recipients

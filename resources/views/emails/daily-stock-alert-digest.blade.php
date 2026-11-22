@@ -45,8 +45,8 @@
                 </thead>
                 <tbody>
                     @foreach($outOfStockItems as $i => $item)
-                    <tr style="background: {{ $i % 2 == 0 ? '#fff5f5' : '#ffffff' }};">
-                        <td style="padding: 10px 12px; border-bottom: 1px solid #fecaca; color: #666;">{{ $i + 1 }}</td>
+                    <tr style="background: {{ $loop->odd ? '#fff5f5' : '#ffffff' }};">
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #fecaca; color: #666;">{{ $loop->iteration }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fecaca; color: #333; font-weight: 600;">{{ $item->name }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fecaca; color: #666;">{{ $item->category }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fecaca; text-align: center; font-weight: 700; color: #dc2626;">{{ $item->current_stock }} {{ $item->unit }}</td>
@@ -76,8 +76,8 @@
                 </thead>
                 <tbody>
                     @foreach($lowStockItems as $i => $item)
-                    <tr style="background: {{ $i % 2 == 0 ? '#fffef5' : '#ffffff' }};">
-                        <td style="padding: 10px 12px; border-bottom: 1px solid #fde68a; color: #666;">{{ $i + 1 }}</td>
+                    <tr style="background: {{ $loop->odd ? '#fffef5' : '#ffffff' }};">
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #fde68a; color: #666;">{{ $loop->iteration }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fde68a; color: #333; font-weight: 600;">{{ $item->name }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fde68a; color: #666;">{{ $item->category }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #fde68a; text-align: center; font-weight: 700; color: #d97706;">{{ $item->current_stock }} {{ $item->unit }}</td>

@@ -137,7 +137,7 @@ final class InventoryNotifier
                     : self::users(['admin'], $sr->bidang);
 
                 self::send($processors, new AppNotification(
-                    'Stok Request baru menunggu approval',
+                    $sr->bidang === 'teknik' ? 'Stok Request baru menunggu approval' : 'Stok Request baru menunggu verifikasi',
                     self::join([$sr->category, $sr->lines->count().' barang', $sr->user?->name]),
                     'Stok-request',
                     ['kind' => 'sr_pending', 'stock_request_id' => $sr->id],
@@ -146,10 +146,27 @@ final class InventoryNotifier
         });
     }
 
+    /** Umum: admin sudah verifikasi → manajer bidang diminta menyetujui. */
+    public static function stokRequestTerverifikasi(StockRequest $sr): void
+    {
+        self::safe(function () use ($sr) {
+            self::markRead('sr_pending', 'stock_request_id', [$sr->id]);
+            $sr->loadMissing(['user', 'lines', 'verifier']);
+
+            self::send(self::users(['manajer'], $sr->bidang), new AppNotification(
+                'Stok Request menunggu persetujuan',
+                self::join([$sr->document_number, $sr->category, $sr->lines->count().' barang', 'diverifikasi '.($sr->verifier?->name ?? '-')]),
+                'Stok-request',
+                ['kind' => 'sr_verified', 'stock_request_id' => $sr->id],
+            ));
+        });
+    }
+
     public static function stokRequestDiproses(StockRequest $sr): void
     {
         self::safe(function () use ($sr) {
             self::markRead('sr_pending', 'stock_request_id', [$sr->id]);
+            self::markRead('sr_verified', 'stock_request_id', [$sr->id]);
 
             $owner = $sr->user_id && (int) $sr->user_id !== (int) auth()->id() ? User::find($sr->user_id) : null;
             if (! $owner) {
@@ -159,10 +176,44 @@ final class InventoryNotifier
             $label = $sr->status === 'approved' ? 'disetujui' : 'ditolak';
 
             $owner->notify(new AppNotification(
-                "Stok Request #{$sr->id} {$label}",
+                "Stok Request {$sr->document_number} {$label}",
                 self::join([$sr->category, $sr->lines->count().' barang']),
                 'Stok-request',
                 ['kind' => 'sr_result', 'stock_request_id' => $sr->id],
+            ));
+        });
+    }
+
+    /* ───────────── Stock Opname ───────────── */
+
+    public static function stockOpnameBaru(\App\Models\StockOpname $so): void
+    {
+        self::safe(function () use ($so) {
+            $so->loadMissing(['user', 'lines']);
+            self::send(self::users(['admin'], $so->bidang), new AppNotification(
+                'Stock opname menunggu verifikasi',
+                self::join([$so->document_number, $so->lines->count().' barang', $so->user?->name]),
+                'stock/opname',
+                ['kind' => 'so_pending', 'stock_opname_id' => $so->id],
+            ));
+        });
+    }
+
+    public static function stockOpnameDiproses(\App\Models\StockOpname $so): void
+    {
+        self::safe(function () use ($so) {
+            self::markRead('so_pending', 'stock_opname_id', [$so->id]);
+
+            $owner = $so->user_id && (int) $so->user_id !== (int) auth()->id() ? User::find($so->user_id) : null;
+            if (! $owner) {
+                return;
+            }
+
+            $owner->notify(new AppNotification(
+                "Stock opname {$so->document_number} ".($so->status === 'verified' ? 'terverifikasi' : 'ditolak'),
+                $so->status === 'verified' ? 'Selisih stok sudah disesuaikan' : 'Stok tidak diubah',
+                'stock/opname',
+                ['kind' => 'so_result', 'stock_opname_id' => $so->id],
             ));
         });
     }

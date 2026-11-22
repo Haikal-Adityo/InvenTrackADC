@@ -12,6 +12,7 @@ class Transaction extends Model
     protected $fillable = [
         'item_id',
         'user_id',
+        'stuff_request_id',
         'bidang',
         'no_normalisasi',
         'lokasi',
@@ -60,6 +61,11 @@ class Transaction extends Model
 
             Item::withTrashed()->find($transaction->item_id)?->refreshShipUnloaderFromLatestTransaction();
         });
+    }
+
+    public function stuffRequest()
+    {
+        return $this->belongsTo(StuffRequest::class)->withTrashed();
     }
 
     public function item()

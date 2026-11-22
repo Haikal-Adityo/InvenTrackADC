@@ -11,8 +11,10 @@ use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
+use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
+use Maatwebsite\Excel\Concerns\WithColumnLimit;
 
-class ItemImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure, SkipsEmptyRows
+class ItemImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure, SkipsEmptyRows, WithColumnLimit, WithCalculatedFormulas
 {
     use SkipsFailures, Importable;
 
@@ -21,6 +23,23 @@ class ItemImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFail
 
     public function __construct(private ?User $user = null)
     {
+    }
+
+    /** Hanya baca kolom A..Z: file Excel klien tercatat sampai kolom XFD (16.384 kolom) → 500 kehabisan memori. */
+    public function endColumn(): string
+    {
+        return 'Z';
+    }
+
+    public function prepareForValidation($data, $index)
+    {
+        foreach ($data as $key => $value) {
+            if (is_string($value)) {
+                $data[$key] = trim(preg_replace('/\s+/u', ' ', $value));
+            }
+        }
+
+        return $data;
     }
 
     public function model(array $row)
@@ -85,6 +104,7 @@ class ItemImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFail
             'nama_barang.required' => 'Kolom nama_barang wajib diisi.',
             'kategori.required'    => 'Kolom kategori wajib diisi.',
             'satuan.required'      => 'Kolom satuan wajib diisi.',
+            'min_stok.integer'     => 'Kolom min_stok harus angka.',
         ];
     }
 

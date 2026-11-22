@@ -6,13 +6,35 @@
 @section('content')
     @php
         $isTeknik = auth()->user()->bidang === 'teknik';
+        $authUser = auth()->user();
         $stockRequestDetailData = [];
+
+        // Aksi yang boleh dilakukan user login pada tiap stok request
+        // Umum: admin verifikasi (pending) → manajer setujui (verified). Teknik: manajer setujui (pending).
+        $srAction = function ($sr) use ($authUser) {
+            if ($sr->bidang === 'teknik') {
+                return $authUser->isManager() && $authUser->isTeknik() && $sr->status === 'pending' ? 'approve' : null;
+            }
+            if ($authUser->isAdmin() && $sr->status === 'pending') {
+                return 'verify';
+            }
+            if ($authUser->isManager() && $sr->status === 'verified') {
+                return 'approve';
+            }
+
+            return null;
+        };
 
         foreach ($stockRequests as $requestRow) {
             $stockRequestDetailData[$requestRow->id] = [
+                'number' => $requestRow->document_number,
                 'requester' => $requestRow->user->name ?? '-',
                 'date' => $requestRow->created_at->format('d/m/Y H:i'),
-                'status' => ucfirst($requestRow->status),
+                'status' => $requestRow->status_label,
+                'need_period' => $requestRow->need_period_label,
+                'verifier' => $requestRow->verifier
+                    ? $requestRow->verifier->name . ' (' . $requestRow->verified_at?->format('d/m/Y H:i') . ')'
+                    : null,
                 'category' => $requestRow->category ?: ($requestRow->lines->first()?->category ?? '-'),
                 'grand_total' => (int) $requestRow->lines->sum(fn($line) => (int) $line->price * (int) $line->quantity),
                 'lines' => $requestRow->lines->map(function ($line) {
@@ -21,6 +43,8 @@
 
                     return [
                         'name' => $line->item->name ?? '-',
+                        'reference' => $line->referenceRequest?->document_number,
+                        'need_month' => $line->need_month_label,
                         'no_normalisasi' => $line->item->no_normalisasi ?? '-',
                         'category' => $line->category ?: ($line->item->category ?? '-'),
                         'lokasi' => $line->item->lokasi ?? '-',
@@ -80,7 +104,10 @@
                             </select>
                             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                                 <option value="">Semua Status</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>{{ $isTeknik ? 'Pending' : 'Menunggu Verifikasi' }}</option>
+                                @unless($isTeknik)
+                                    <option value="verified" {{ request('status') == 'verified' ? 'selected' : '' }}>Menunggu Persetujuan</option>
+                                @endunless
                                 <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
                                 <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
@@ -115,10 +142,15 @@
             <div class="card-header flex-wrap gap-2">
                 <span>
                     <i class="bi bi-cart-check-fill text-primary-custom me-2"></i>Daftar Stok Request
-                    @if(((auth()->user()->isAdmin() && !$isTeknik) || (auth()->user()->isManager() && $isTeknik)) && $pendingCount > 0)
-                        <span class="badge bg-warning text-dark ms-2">{{ $pendingCount }} pending</span>
+                    @if(!$authUser->isStaff() && !$authUser->isSuperAdmin() && $pendingCount > 0)
+                        <span class="badge bg-warning text-dark ms-2">{{ $pendingCount }} {{ $authUser->isManager() && !$isTeknik ? 'menunggu persetujuan' : ($isTeknik ? 'pending' : 'menunggu verifikasi') }}</span>
                     @endif
                 </span>
+                @if($authUser->isSuperAdmin())
+                    <a href="{{ route('stock-requests.pdf-settings') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear me-1"></i> Pengaturan PDF
+                    </a>
+                @endif
             </div>
             <div class="card-body p-0">
                 <div class="table-container">
@@ -139,7 +171,10 @@
                             @forelse($stockRequests as $index => $stockRequest)
                                 <tr>
                                     <td>{{ $stockRequests->firstItem() + $index }}</td>
-                                    <td style="white-space:nowrap;">{{ $stockRequest->created_at->format('d/m/Y H:i') }}</td>
+                                    <td style="white-space:nowrap;">
+                                        {{ $stockRequest->created_at->format('d/m/Y H:i') }}
+                                        <div class="small text-muted">{{ $stockRequest->document_number }}</div>
+                                    </td>
                                     <td class="fw-600">{{ $stockRequest->user->name ?? '-' }}</td>
                                     <td>
                                         <span>
@@ -158,21 +193,29 @@
                                     </td>
                                     <td class="text-center">
                                         <span class="badge-status stock-request-status stock-request-status-{{ $stockRequest->status }}">
-                                            {{ ucfirst($stockRequest->status) }}
+                                            {{ $stockRequest->status_label }}
                                         </span>
                                     </td>
                                     <td>
-                                        {{ $stockRequest->processor->name ?? '-' }}
-                                        @if($stockRequest->processed_at)
-                                            <div class="small text-muted">{{ $stockRequest->processed_at->format('d/m/Y H:i') }}</div>
+                                        @if($stockRequest->verifier)
+                                            <div style="font-size:12px;"><span class="text-muted">Verifikasi:</span> {{ $stockRequest->verifier->name }}</div>
+                                        @endif
+                                        @if($stockRequest->processor)
+                                            <div style="font-size:12px;"><span class="text-muted">{{ $stockRequest->status === 'rejected' ? 'Ditolak:' : 'Disetujui:' }}</span> {{ $stockRequest->processor->name }}</div>
+                                            <div class="small text-muted">{{ $stockRequest->processed_at?->format('d/m/Y H:i') }}</div>
+                                        @endif
+                                        @if(!$stockRequest->verifier && !$stockRequest->processor)
+                                            -
                                         @endif
                                     </td>
+                                    @php $rowAction = $srAction($stockRequest); @endphp
                                     <td class="text-center" style="white-space:nowrap;">
                                         <button type="button"
                                             class="btn btn-sm btn-outline-primary btn-stock-request-detail-open"
                                             title="Rincian barang"
                                             data-request-id="{{ $stockRequest->id }}"
-                                            data-can-process="{{ ((auth()->user()->isAdmin() && !$isTeknik) || (auth()->user()->isManager() && $isTeknik)) && $stockRequest->status === 'pending' ? '1' : '0' }}"
+                                            data-can-process="{{ $rowAction ? '1' : '0' }}"
+                                            data-action="{{ $rowAction }}"
                                             data-form-approve="#approveStockReq-{{ $stockRequest->id }}"
                                             data-form-reject="#rejectStockReq-{{ $stockRequest->id }}">
                                             <i class="bi bi-box-seam"></i>
@@ -183,9 +226,9 @@
                                                 <i class="bi bi-file-earmark-pdf"></i>
                                             </a>
                                         @endif
-                                        @if(((auth()->user()->isAdmin() && !$isTeknik) || (auth()->user()->isManager() && $isTeknik)) && $stockRequest->status === 'pending')
+                                        @if($rowAction)
                                             <div class="d-none" aria-hidden="true">
-                                                <form action="{{ route('stock-requests.approve', $stockRequest) }}" method="POST" id="approveStockReq-{{ $stockRequest->id }}">
+                                                <form action="{{ route($rowAction === 'verify' ? 'stock-requests.verify' : 'stock-requests.approve', $stockRequest) }}" method="POST" id="approveStockReq-{{ $stockRequest->id }}">
                                                     @csrf
                                                 </form>
                                                 <form action="{{ route('stock-requests.reject', $stockRequest) }}" method="POST" id="rejectStockReq-{{ $stockRequest->id }}">
@@ -227,7 +270,7 @@
     </div>
 
     <div class="modal fade inventrack-modal" id="stockRequestDetailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -242,6 +285,9 @@
                             <div class="col-sm-6"><span class="text-muted">Tanggal</span><br><strong id="stockRequestDetailDate">-</strong></div>
                             <div class="col-sm-6"><span class="text-muted">Kategori Request</span><br><span id="stockRequestDetailCategory">-</span></div>
                             <div class="col-sm-6"><span class="text-muted">Status</span><br><span id="stockRequestDetailStatus">-</span></div>
+                            <div class="col-sm-6"><span class="text-muted">No. Request</span><br><span id="stockRequestDetailNumber">-</span></div>
+                            <div class="col-sm-6" id="stockRequestDetailPeriodWrap"><span class="text-muted">Periode Kebutuhan</span><br><strong id="stockRequestDetailPeriod">-</strong></div>
+                            <div class="col-sm-12 d-none" id="stockRequestDetailVerifierWrap"><span class="text-muted">Diverifikasi oleh</span><br><span id="stockRequestDetailVerifier">-</span></div>
                         </div>
                     </div>
                     <div class="table-responsive rounded-3 border" style="border-color:var(--border-color) !important;">
@@ -257,16 +303,16 @@
                                         <th style="min-width:140px;">Lokasi</th>
                                         <th class="text-end" style="width:120px;white-space:nowrap;">Volume</th>
                                         <th class="text-end" style="min-width:160px;white-space:nowrap;">Harga Satuan</th>
-                                        <th class="text-end" style="min-width:190px;white-space:nowrap;">Total Harga</th>
+                                        <th class="text-end" style="min-width:190px;white-space:nowrap;">Subtotal</th>
                                     </tr>
                                 @else
                                     <tr>
                                         <th style="width:44px;">No</th>
-                                        <th style="min-width:180px;">Barang</th>
-                                        <th style="min-width:140px;">Kategori</th>
+                                        <th style="min-width:200px;">Barang</th>
+                                        <th style="min-width:150px;">Referensi</th>
                                         <th class="text-end" style="width:120px;">Jumlah</th>
                                         <th class="text-end" style="width:150px;">Harga Satuan</th>
-                                        <th class="text-end" style="width:150px;">Total Harga</th>
+                                        <th class="text-end" style="width:150px;">Subtotal</th>
                                         <th style="min-width:180px;">Keterangan</th>
                                     </tr>
                                 @endif
@@ -275,7 +321,7 @@
                         </table>
                     </div>
                     <div class="stock-request-grand-total mt-3">
-                        <span>Total Harga Keseluruhan</span>
+                        <span>Grand Total</span>
                         <strong id="stockRequestDetailGrandTotal">Rp 0</strong>
                     </div>
                 </div>
@@ -300,6 +346,8 @@
                 <form method="GET" id="stockRequestExportForm" action="{{ route('stock-requests.export') }}"
                     data-excel-action="{{ route('stock-requests.export') }}"
                     data-pdf-action="{{ route('stock-requests.exportAllPdf') }}">
+                    {{-- PDF Rekap = POST (membuat PDF baru / cetakan baru); Excel = GET --}}
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}" id="stockRequestExportToken" disabled>
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="bi bi-download me-2"></i><span id="stockRequestExportTitle">Export Stok Request</span>
@@ -316,7 +364,10 @@
                         <label class="form-label fw-600" for="stockRequestExportStatus">Status yang diexport</label>
                         <select name="status" id="stockRequestExportStatus" class="form-select">
                             <option value="">Semua Status</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>{{ $isTeknik ? 'Pending' : 'Menunggu Verifikasi' }}</option>
+                            @unless($isTeknik)
+                                <option value="verified" {{ request('status') == 'verified' ? 'selected' : '' }}>Menunggu Persetujuan</option>
+                            @endunless
                             <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
                             <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                         </select>
@@ -366,6 +417,8 @@
 
                 const isPdf = trigger.dataset.exportFormat === 'pdf';
                 form.action = isPdf ? form.dataset.pdfAction : form.dataset.excelAction;
+                form.method = isPdf ? 'POST' : 'GET';
+                document.getElementById('stockRequestExportToken').disabled = !isPdf;
                 form.target = isPdf ? '_blank' : '_self';
                 title.textContent = isPdf ? 'Export Stok Request ke PDF' : 'Export Stok Request ke Excel';
                 submitBtn.className = 'btn ' + (isPdf ? 'btn-danger' : 'btn-success');
@@ -375,7 +428,14 @@
                 modal.show();
             });
 
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function (e) {
+                // PDF = cetakan baru; cegah klik ganda membuat 2 cetakan
+                if (form.method.toUpperCase() === 'POST') {
+                    if (form.dataset.sending === '1') { e.preventDefault(); return; }
+                    form.dataset.sending = '1';
+                    submitBtn.disabled = true;
+                    setTimeout(function () { form.dataset.sending = ''; submitBtn.disabled = false; }, 3000);
+                }
                 setTimeout(function () { modal.hide(); }, 150);
             });
         })();
@@ -438,6 +498,11 @@
                     setText('stockRequestDetailDate', data.date);
                     setText('stockRequestDetailCategory', data.category);
                     setText('stockRequestDetailStatus', data.status);
+                    setText('stockRequestDetailNumber', data.number);
+                    setText('stockRequestDetailPeriod', data.need_period);
+                    document.getElementById('stockRequestDetailPeriodWrap')?.classList.toggle('d-none', !data.need_period);
+                    setText('stockRequestDetailVerifier', data.verifier);
+                    document.getElementById('stockRequestDetailVerifierWrap')?.classList.toggle('d-none', !data.verifier);
 
                     tbody.replaceChildren();
                     (data.lines || []).forEach(function (line, index) {
@@ -473,7 +538,9 @@
                                 <td style="color:var(--text-secondary);"></td>
                             `;
                             tr.children[1].textContent = line.name || '-';
-                            tr.children[2].textContent = line.category || '-';
+                            tr.children[2].textContent = line.reference ? `[REF: ${line.reference}]` : '-';
+                            tr.children[2].style.fontSize = '12px';
+                            tr.children[2].style.color = 'var(--text-secondary)';
                             tr.children[3].textContent = formatNumber(line.quantity) + (line.unit ? ' ' + line.unit : '');
                             tr.children[4].textContent = formatCurrency(line.price);
                             tr.children[5].textContent = formatCurrency(line.line_total);
@@ -486,6 +553,10 @@
 
                     hideActions();
                     if (this.getAttribute('data-can-process') === '1') {
+                        const isVerify = this.getAttribute('data-action') === 'verify';
+                        btnApprove.innerHTML = isVerify
+                            ? '<i class="bi bi-patch-check me-1"></i>Verifikasi'
+                            : '<i class="bi bi-check-lg me-1"></i>Approve';
                         btnApprove.classList.remove('d-none');
                         btnReject.classList.remove('d-none');
                     }

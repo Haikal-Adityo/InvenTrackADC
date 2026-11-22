@@ -150,10 +150,12 @@
                 </div>
                 <div class="card-body p-0">
                     @foreach($pendingByDate as $date => $transactions)
-                        <div class="approval-date-group">
-                            <div class="d-flex align-items-center justify-content-between px-3 py-3"
+                        <div class="approval-date-group {{ $loop->first ? 'is-open' : '' }}">
+                            <div class="approval-date-header d-flex align-items-center justify-content-between px-3 py-3 flex-wrap gap-2"
                                 style="background:var(--body-bg); border-bottom:1px solid var(--border-color);">
-                                <div class="d-flex align-items-center gap-2">
+                                <div class="approval-date-toggle d-flex align-items-center gap-2" role="button" tabindex="0"
+                                    aria-expanded="{{ $loop->first ? 'true' : 'false' }}" title="Klik untuk buka/tutup">
+                                    <i class="bi bi-chevron-right approval-date-chevron"></i>
                                     <i class="bi bi-calendar3 text-primary-custom"></i>
                                     <span class="fw-700"
                                         style="font-size:14px;">{{ \Carbon\Carbon::parse($date)->translatedFormat('l, d F Y') }}</span>
@@ -181,7 +183,7 @@
                                     </form>
                                 </div>
                             </div>
-                            <div class="table-container">
+                            <div class="table-container approval-date-body">
                                 <table class="table" style="margin-bottom:0;">
                                     <thead>
                                         <tr>
@@ -217,7 +219,7 @@
                                                 @endunless
                                                 <td>{{ $tx->user->name ?? '-' }}</td>
                                                 <td style="font-size:12px; color:var(--text-secondary);">
-                                                    {{ Str::limit($tx->description, 40) }}
+                                                    {{ $tx->description ?: '-' }}
                                                 </td>
                                                 <td class="text-end">
                                                     <div class="d-flex gap-1 justify-content-end flex-wrap">
@@ -792,6 +794,21 @@
 @endsection
 
 @push('scripts')
+    <script>
+        (function () {
+            function toggleGroup(group) {
+                const open = group.classList.toggle('is-open');
+                const t = group.querySelector('.approval-date-toggle');
+                if (t) t.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            document.querySelectorAll('.approval-date-toggle').forEach(function (el) {
+                el.addEventListener('click', function () { toggleGroup(el.closest('.approval-date-group')); });
+                el.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(el.closest('.approval-date-group')); }
+                });
+            });
+        })();
+    </script>
     <script>
     (function () {
         // ===== Super Admin bidang context for AJAX =====

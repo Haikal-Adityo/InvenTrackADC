@@ -65,7 +65,8 @@ class DashboardController extends Controller
         // milik role lain, mis. Manajer bidang Umum yang tidak berwenang approve apa pun).
         $pendingCount = match (true) {
             $user->isManager() && $user->isTeknik() => StockRequest::visibleFor($user)->pending()->count(),
-            $user->isManager() && !$user->isTeknik() => 0,
+            // Manajer Umum: Stok Request yang sudah diverifikasi GA Admin & menunggu persetujuannya
+            $user->isManager() && !$user->isTeknik() => StockRequest::visibleFor($user)->where('status', 'verified')->count(),
             default => Transaction::visibleFor($user)->pending()->count(),
         };
 
@@ -323,16 +324,26 @@ class DashboardController extends Controller
             }
         }
 
-        // Approve all
+        // Approve all (atomik per transaksi: klik ganda tidak memproses / mengirim email dua kali)
         $count = 0;
+        $processed = collect();
         foreach ($transactions as $tx) {
-            $tx->update([
+            $affected = Transaction::whereKey($tx->id)->where('status', 'pending')->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
+                'updated_at' => now(),
             ]);
-            $count++;
+            if ($affected > 0) {
+                $processed->push($tx->refresh());
+                $count++;
+            }
         }
+
+        if ($count === 0) {
+            return back()->with('error', 'Transaksi tanggal ini sudah diproses.');
+        }
+        $transactions = $processed;
 
         // Notifikasi: tandai tugas approval selesai, kabari pembuat transaksi, cek stok rendah
         \App\Support\InventoryNotifier::transaksiDiproses($transactions, 'approved');
@@ -387,6 +398,7 @@ class DashboardController extends Controller
 
         $count = $rejectedTransactions->isEmpty() ? 0 : Transaction::query()
             ->whereIn('id', $rejectedTransactions->pluck('id'))
+            ->where('status', 'pending')
             ->update([
                 'status' => 'rejected',
                 'approved_by' => auth()->id(),

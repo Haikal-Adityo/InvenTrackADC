@@ -138,7 +138,12 @@
         const unread = parseInt(meta('nl-unread-count'), 10);
         if (!Number.isNaN(unread)) setUnread(unread);
 
-        if (!pushSupported() || !meta('nl-push-key') || !cfg.subscribe) return;
+        if (!pushSupported() || !cfg.subscribe) return;
+        if (!meta('nl-push-key')) {
+            // Tanpa VAPID key server tidak bisa mengirim push → kartu "Aktifkan" sengaja tidak ditampilkan
+            console.warn('[NextLog push] Push nonaktif: library minishlink/web-push belum terpasang atau VAPID key di .env server kosong.');
+            return;
+        }
 
         if (Notification.permission === 'denied') return showPrompt(true);
         if (Notification.permission !== 'granted') return showPrompt(false);

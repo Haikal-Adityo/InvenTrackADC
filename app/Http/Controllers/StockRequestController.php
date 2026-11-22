@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Exports\StockRequestExport;
 use App\Mail\StockRequestApproved;
+use App\Mail\StockRequestNeedsApproval;
+use App\Models\AppSetting;
+use App\Models\DocumentPrint;
 use App\Mail\StockRequestSubmitted;
 use App\Models\Item;
 use App\Models\StockRequest;
 use App\Models\StockRequestLine;
 use App\Support\InventoryMail;
+use App\Support\PdfQr;
+use App\Support\StockRequestPricing;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +30,7 @@ class StockRequestController extends Controller
 
         $stockRequests = $query->paginate(15)->withQueryString();
         $categories = Item::visibleFor(auth()->user())->select('category')->distinct()->orderBy('category')->pluck('category');
-        $pendingCount = StockRequest::visibleFor(auth()->user())->pending()->count();
+        $pendingCount = $this->actionableQuery()->count();
 
         $yearExpr = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite' ? "strftime('%Y', created_at) as year" : 'YEAR(created_at) as year';
         $years = StockRequest::visibleFor(auth()->user())
@@ -47,7 +52,10 @@ class StockRequestController extends Controller
             'Anda tidak memiliki akses untuk membuat stock request.'
         );
 
+        $isTeknikActor = auth()->user()->isTeknik();
+
         $validated = $request->validate([
+            'need_month' => [$isTeknikActor ? 'nullable' : 'required', 'date_format:Y-m'],
             'lines' => 'required|array|min:1',
             'lines.*.item_id' => 'required|distinct|exists:items,id',
             'lines.*.price' => 'required|integer|min:0',
@@ -57,7 +65,14 @@ class StockRequestController extends Controller
             'lines.required' => 'Tambahkan minimal satu barang.',
             'lines.*.item_id.distinct' => 'Barang yang sama tidak boleh dimasukkan lebih dari satu kali.',
             'lines.*.quantity.min' => 'Jumlah request minimal 1.',
+            'need_month.required' => 'Pilih bulan Periode Kebutuhan.',
+            'need_month.date_format' => 'Format Periode Kebutuhan tidak valid.',
         ]);
+
+        // Periode Kebutuhan global (1 bulan) → header: tgl 1 s/d akhir bulan; tiap baris ikut disimpan
+        $needMonth = filled($validated['need_month'] ?? null)
+            ? \Carbon\Carbon::createFromFormat('Y-m-d', $validated['need_month'].'-01')->startOfMonth()
+            : null;
 
         $requestedItemIds = collect($validated['lines'])
             ->pluck('item_id')
@@ -80,7 +95,7 @@ class StockRequestController extends Controller
             ->whereIn('item_id', $requestedItemIds)
             ->whereHas('stockRequest', function ($query) {
                 $query->where('user_id', auth()->id())
-                    ->where('status', 'pending');
+                    ->whereIn('status', ['pending', 'verified']);
             })
             ->get()
             ->pluck('item.name')
@@ -94,7 +109,9 @@ class StockRequestController extends Controller
             ]);
         }
 
-        $createdStockRequests = DB::transaction(function () use ($validated) {
+        $pricing = StockRequestPricing::forItems($requestedItemIds);
+
+        $createdStockRequests = DB::transaction(function () use ($validated, $pricing, $needMonth) {
             $items = Item::visibleFor(auth()->user())
                 ->whereIn('id', collect($validated['lines'])->pluck('item_id'))
                 ->get()
@@ -119,6 +136,8 @@ class StockRequestController extends Controller
                     'user_id' => auth()->id(),
                     'bidang' => $rows->first()['item']?->bidang ?? auth()->user()->bidang,
                     'category' => $category,
+                    'need_start' => $needMonth?->toDateString(),
+                    'need_end' => $needMonth?->copy()->endOfMonth()->toDateString(),
                     'status' => 'pending',
                 ]);
                 $stockRequest->created_at = $timestamp;
@@ -130,10 +149,12 @@ class StockRequestController extends Controller
                     $item = $row['item'];
 
                     $stockRequest->lines()->create([
+                        'reference_stock_request_id' => $pricing[(int) $line['item_id']]['reference']['id'] ?? null,
                         'item_id' => $line['item_id'],
                         'category' => $item?->category,
                         'price' => (int) $line['price'],
                         'quantity' => (int) $line['quantity'],
+                        'need_month' => $needMonth?->toDateString(),
                         'description' => $line['description'] ?? null,
                     ]);
                 }
@@ -160,20 +181,48 @@ class StockRequestController extends Controller
             ->with('success', "{$createdStockRequests->count()} Permintaan Stok Barang berhasil dibuat.");
     }
 
+    /** Tahap 1 (Umum): admin bidang memverifikasi → diteruskan ke manajer. */
+    public function verify(StockRequest $stockRequest)
+    {
+        $this->authorizeStockRequestDepartment($stockRequest);
+        abort_unless($stockRequest->usesTwoStepApproval() && auth()->user()->isAdmin(), 403, 'Hanya GA Admin yang dapat memverifikasi stok request ini.');
+
+        if (! $this->transition($stockRequest, ['pending'], [
+            'status' => 'verified',
+            'verified_by' => auth()->id(),
+            'verified_at' => now(),
+        ])) {
+            return back()->with('error', 'Stok request ini sudah diproses.');
+        }
+
+        \App\Support\InventoryNotifier::stokRequestTerverifikasi($stockRequest);
+
+        InventoryMail::sendTo(
+            InventoryMail::managerRecipients($stockRequest->bidang),
+            new StockRequestNeedsApproval($stockRequest),
+            'Stok Request menunggu persetujuan',
+            ['stock_request_id' => $stockRequest->id]
+        );
+
+        return back()->with('success', "Stok request {$stockRequest->document_number} berhasil diverifikasi dan diteruskan ke Leader untuk disetujui.");
+    }
+
     public function approve(StockRequest $stockRequest)
     {
         $this->authorizeStockRequestDepartment($stockRequest);
         $this->authorizeStockRequestProcessor($stockRequest);
 
-        if ($stockRequest->status !== 'pending') {
-            return back()->with('error', 'Stock request ini sudah diproses.');
+        if ($stockRequest->usesTwoStepApproval() && $stockRequest->status === 'pending') {
+            return back()->with('error', 'Stok request ini harus diverifikasi GA Admin terlebih dahulu.');
         }
 
-        $stockRequest->update([
+        if (! $this->transition($stockRequest, [$this->approvableStatus($stockRequest)], [
             'status' => 'approved',
             'processed_by' => auth()->id(),
             'processed_at' => now(),
-        ]);
+        ])) {
+            return back()->with('error', 'Stok request ini sudah diproses.');
+        }
 
         \App\Support\InventoryNotifier::stokRequestDiproses($stockRequest);
 
@@ -186,32 +235,40 @@ class StockRequestController extends Controller
             ['stock_request_id' => $stockRequest->id]
         );
 
-        return back()->with('success', 'Stock request berhasil disetujui.');
+        return back()->with('success', 'Stok request berhasil disetujui.');
     }
 
     public function reject(StockRequest $stockRequest)
     {
         $this->authorizeStockRequestDepartment($stockRequest);
-        $this->authorizeStockRequestProcessor($stockRequest);
+        $user = auth()->user();
 
-        if ($stockRequest->status !== 'pending') {
-            return back()->with('error', 'Stock request ini sudah diproses.');
+        // Umum: admin menolak saat verifikasi (pending), manajer menolak saat persetujuan (verified)
+        $allowed = $stockRequest->usesTwoStepApproval()
+            ? (($stockRequest->status === 'pending' && $user->isAdmin()) || ($stockRequest->status === 'verified' && $user->isManager()))
+            : ($stockRequest->status === 'pending' && $user->isManager());
+
+        if (! in_array($stockRequest->status, ['pending', 'verified'], true)) {
+            return back()->with('error', 'Stok request ini sudah diproses.');
         }
+        abort_unless($allowed, 403, 'Anda tidak memiliki akses untuk menolak stok request pada tahap ini.');
 
-        $stockRequest->update([
+        if (! $this->transition($stockRequest, [$stockRequest->status], [
             'status' => 'rejected',
             'processed_by' => auth()->id(),
             'processed_at' => now(),
-        ]);
+        ])) {
+            return back()->with('error', 'Stok request ini sudah diproses.');
+        }
 
         \App\Support\InventoryNotifier::stokRequestDiproses($stockRequest);
 
-        return back()->with('success', 'Stock request berhasil ditolak.');
+        return back()->with('success', 'Stok request berhasil ditolak.');
     }
 
     public function export(Request $request)
     {
-        $request->validate(['status' => 'nullable|in:pending,approved,rejected']);
+        $request->validate(['status' => 'nullable|in:pending,verified,approved,rejected']);
 
         $suffix = $request->filled('status') ? '_' . $request->status : '';
         $filename = 'stock_request' . $suffix . '_' . now()->format('Y-m-d_His') . '.xlsx';
@@ -221,7 +278,11 @@ class StockRequestController extends Controller
 
     public function exportAllPdf(Request $request)
     {
-        $request->validate(['status' => 'nullable|in:pending,approved,rejected']);
+        $request->validate([
+            'status' => 'nullable|in:pending,verified,approved,rejected',
+            'year' => 'nullable|integer',
+            'month' => 'nullable|integer|between:1,12',
+        ]);
 
         $stockRequests = $this->filteredQuery($request)->get();
         $user = auth()->user();
@@ -234,52 +295,93 @@ class StockRequestController extends Controller
 
                 return [
                     'request_id' => $stockRequest->id,
+                    'request_number' => $stockRequest->document_number,
                     'date' => $stockRequest->created_at->format('d/m/Y'),
                     'requester' => $stockRequest->user->name ?? '-',
                     'name' => $line->item->name ?? '-',
                     'no_normalisasi' => $line->item->no_normalisasi ?? '-',
                     'ship_unloader' => $line->item->ship_unloader_label ?? '-',
-                    'category' => $line->category ?: ($line->item->category ?? '-'),
+                    'category' => $line->category ?: ($line->item->category ?? 'Tanpa Kategori'),
                     'quantity' => $quantity,
                     'unit' => $line->item->unit ?? '',
                     'price' => $price,
                     'line_total' => $price * $quantity,
                     'status' => $stockRequest->status,
+                    'status_label' => $stockRequest->status_label,
                     'processor' => $stockRequest->processor->name ?? '-',
                 ];
             });
         })->values();
 
-        $statusCounts = [
-            'pending' => $stockRequests->where('status', 'pending')->count(),
-            'approved' => $stockRequests->where('status', 'approved')->count(),
-            'rejected' => $stockRequests->where('status', 'rejected')->count(),
-        ];
+        // Tabel per kategori (kolom kategori tidak ditampilkan), subtotal per kategori + grand total
+        $groups = $rows->groupBy('category')->sortKeys()->map(fn ($items, $category) => [
+            'category' => $category,
+            'rows' => $items->values(),
+            'subtotal' => (int) $items->sum('line_total'),
+        ])->values();
 
-        $months = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
-            7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+        // Setiap klik Export = PDF baru dengan nomor urut global (cetakan ke-N). File disimpan,
+        // lalu user diarahkan ke link PDF-nya; membuka ulang link tsb tidak menambah hitungan.
+        $filters = array_filter($request->only(['year', 'month', 'status', 'category']), 'filled');
+        $grandTotal = (int) $rows->sum('line_total');
+        $bidangLabel = $user->isSuperAdmin() ? 'SEMUA BIDANG' : 'BIDANG ' . strtoupper($user->bidang ?? '-');
 
-        $filters = [
-            'status' => $request->filled('status') ? ucfirst($request->status) : 'Semua Status',
-            'periode' => trim(($request->filled('month') ? ($months[(int) $request->month] ?? '') . ' ' : '') . ($request->year ?: ($request->filled('month') ? '' : 'Semua Periode'))),
-            'category' => $request->category ?: 'Semua Kategori',
-        ];
+        $doc = DB::transaction(function () use ($user, $filters, $rows, $grandTotal, $groups, $isTeknik, $bidangLabel) {
+            $doc = DocumentPrint::create([
+                'bidang' => $user->isSuperAdmin() ? null : $user->bidang,
+                'filters' => $filters,
+                'row_count' => $rows->count(),
+                'grand_total' => $grandTotal,
+                'printed_by' => $user->id,
+            ]);
+            $doc->document_number = DocumentPrint::numberFor($doc->id, $doc->created_at);
 
-        $pdf = Pdf::loadView('stock-requests.pdf-list', [
-            'rows' => $rows,
-            'totalRequests' => $stockRequests->count(),
-            'statusCounts' => $statusCounts,
-            'grandTotal' => (int) $rows->sum('line_total'),
-            'filters' => $filters,
-            'isTeknik' => $isTeknik,
-            'bidang' => $user->isSuperAdmin() ? 'SEMUA BIDANG' : 'BIDANG ' . strtoupper($user->bidang ?? '-'),
-            'printedBy' => $user->name,
-        ])->setPaper('a4', 'landscape');
+            $logUrl = route('items.activity-log', ['dokumen' => $doc->document_number]);
 
-        $suffix = $request->filled('status') ? '_' . ucfirst($request->status) : '';
-        $filename = 'Rekap_Stok_Request' . $suffix . '_' . now()->format('Ymd_His') . '.pdf';
+            $pdf = Pdf::loadView('stock-requests.pdf-list', [
+                'groups' => $groups,
+                'grandTotal' => $grandTotal,
+                'isTeknik' => $isTeknik,
+                'bidang' => $bidangLabel,
+                'docNumber' => $doc->document_number,
+                'docDate' => $doc->created_at->timezone(config('app.timezone')),
+                'printCount' => $doc->id,
+                'printedBy' => $user->name,
+                'qr' => PdfQr::dataUri($logUrl),
+                'logUrl' => $logUrl,
+            ])->setPaper('a4', 'landscape');
 
-        return $pdf->stream($filename);
+            $doc->file_path = 'rekap-persediaan/' . $doc->document_number . '.pdf';
+            \Illuminate\Support\Facades\Storage::disk('local')->put($doc->file_path, $pdf->output());
+            $doc->save();
+
+            return $doc;
+        });
+
+        \App\Models\ActivityLog::record(
+            'document_printed',
+            'Cetak PDF Rekap Persediaan Barang (cetakan ke-' . $doc->id . ', ' . $doc->row_count . ' baris barang)',
+            null,
+            $doc->document_number,
+            ['filters' => $filters, 'print_count' => $doc->id]
+        );
+
+        return redirect()->route('stock-requests.recap.show', $doc);
+    }
+
+    /** Buka ulang PDF Rekap yang sudah dibuat (tidak menambah cetakan). */
+    public function showRecap(DocumentPrint $documentPrint)
+    {
+        $user = auth()->user();
+        abort_unless($user->isSuperAdmin() || $documentPrint->bidang === null || $user->canAccessBidang($documentPrint->bidang), 403);
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        abort_unless($documentPrint->file_path && $disk->exists($documentPrint->file_path), 404, 'File PDF rekap tidak ditemukan.');
+
+        return response()->file($disk->path($documentPrint->file_path), [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Rekap_Persediaan_Barang_' . $documentPrint->document_number . '.pdf"',
+        ]);
     }
 
     public function exportPdf(StockRequest $stockRequest)
@@ -294,7 +396,7 @@ class StockRequestController extends Controller
 
         abort_unless($stockRequest->status === 'approved', 403, 'Hanya stok request yang sudah approved yang dapat diexport ke PDF.');
 
-        $stockRequest->load(['lines.item', 'user', 'processor']);
+        $stockRequest->load(['lines.item', 'user', 'processor', 'verifier']);
 
         $isTeknik = $stockRequest->bidang === 'teknik';
 
@@ -312,6 +414,7 @@ class StockRequestController extends Controller
                 'unit' => $line->item->unit ?? '',
                 'price' => $price,
                 'line_total' => $price * $quantity,
+                'need_month' => $line->need_month_label ?: '-',
                 'description' => $line->description ?: '-',
             ];
         })->values();
@@ -323,11 +426,43 @@ class StockRequestController extends Controller
             'isTeknik' => $isTeknik,
             'lines' => $lines,
             'grandTotal' => $grandTotal,
+            'settings' => AppSetting::pdfStockRequest(),
         ])->setPaper('a4', 'portrait');
 
-        $filename = 'Stok_Request_' . $stockRequest->id . '_' . $stockRequest->created_at->format('Ymd') . '.pdf';
+        $filename = 'Permintaan_Barang_' . $stockRequest->document_number . '.pdf';
 
         return $pdf->stream($filename);
+    }
+
+    /** Menu superadmin: edit teks PDF Form Permintaan (Rincian Stok Request). */
+    public function pdfSettings()
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        return view('stock-requests.pdf-settings', [
+            'settings' => AppSetting::pdfStockRequest(),
+            'defaults' => collect(AppSetting::PDF_STOCK_REQUEST_DEFAULTS)->mapWithKeys(fn ($v, $k) => [str_replace('pdf_sr.', '', $k) => $v])->all(),
+            'sample' => StockRequest::where('status', 'approved')->latest()->first(),
+        ]);
+    }
+
+    public function updatePdfSettings(Request $request)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $data = $request->validate([
+            'title' => 'required|string|max:100',
+            'subtitle' => 'nullable|string|max:100',
+            'verify_caption' => 'required|string|max:50',
+            'verify_role' => 'required|string|max:60',
+            'approve_caption' => 'required|string|max:50',
+            'approve_role' => 'required|string|max:60',
+            'footer' => 'nullable|string|max:255',
+        ]);
+
+        AppSetting::putMany(collect($data)->mapWithKeys(fn ($v, $k) => ['pdf_sr.'.$k => $v])->all());
+
+        return back()->with('success', 'Pengaturan PDF Form Permintaan berhasil disimpan.');
     }
 
     public function destroy(StockRequest $stockRequest)
@@ -347,7 +482,7 @@ class StockRequestController extends Controller
     {
         $user = auth()->user();
 
-        return StockRequest::with(['lines.item', 'user', 'processor'])
+        return StockRequest::with(['lines.item', 'lines.referenceRequest', 'user', 'processor', 'verifier'])
             ->visibleFor($user)
             ->when($user->isStaff() || ($user->isAdmin() && $user->isTeknik()), fn($query) => $query->where('user_id', $user->id))
             ->when($request->filled('year'), fn($query) => $query->whereYear('created_at', $request->year))
@@ -367,13 +502,49 @@ class StockRequestController extends Controller
         abort_unless(auth()->user()->canAccessBidang($stockRequest->bidang), 403, 'Anda tidak memiliki akses ke stok request bidang ini.');
     }
 
+    /** Persetujuan akhir: Umum & Teknik sama-sama oleh manajer bidang. */
     private function authorizeStockRequestProcessor(StockRequest $stockRequest): void
     {
-        $user = auth()->user();
-        $allowed = $stockRequest->bidang === 'teknik'
-            ? $user->isManager()
-            : $user->isAdmin();
+        abort_unless(auth()->user()->isManager(), 403, 'Hanya Leader (manajer) yang dapat menyetujui stok request ini.');
+    }
 
-        abort_unless($allowed, 403, 'Anda tidak memiliki akses untuk memproses stock request ini.');
+    /**
+     * Ubah status secara atomik (hanya jika status saat ini masih salah satu $from).
+     * Mencegah klik ganda / dua approver bersamaan memproses (dan mengirim notifikasi) dua kali.
+     */
+    private function transition(StockRequest $stockRequest, array $from, array $attributes): bool
+    {
+        $affected = StockRequest::whereKey($stockRequest->id)
+            ->whereIn('status', $from)
+            ->update($attributes + ['updated_at' => now()]);
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $stockRequest->refresh();
+
+        return true;
+    }
+
+    private function approvableStatus(StockRequest $stockRequest): string
+    {
+        return $stockRequest->usesTwoStepApproval() ? 'verified' : 'pending';
+    }
+
+    /** Stok request yang menunggu aksi user login (untuk badge "x pending"). */
+    private function actionableQuery()
+    {
+        $user = auth()->user();
+        $query = StockRequest::visibleFor($user);
+
+        if ($user->isAdmin() && ! $user->isTeknik()) {
+            return $query->where('status', 'pending');
+        }
+        if ($user->isManager()) {
+            return $query->where('status', $user->isTeknik() ? 'pending' : 'verified');
+        }
+
+        return $query->open()->when($user->isStaff(), fn ($q) => $q->where('user_id', $user->id));
     }
 }

@@ -83,7 +83,7 @@
                                 <th>Harga Satuan</th>
                                 <th>User</th>
                                 <th>Keterangan</th>
-                                @if(auth()->user()->isSuperAdmin())
+                                @if(true) {{-- Status tampil untuk semua user Umum (transaksi rejected jadi jelas) --}}
                                     <th>Status</th>
                                 @endif
                                 <th class="text-center" style="width:72px;">Aksi</th>
@@ -206,7 +206,7 @@
                                             {{ $tx->description }}
                                         </div>
                                     </td>
-                                    @if(auth()->user()->isSuperAdmin())
+                                    @if(true)
                                         <td class="text-nowrap">
                                             @if($tx->status === 'pending')
                                                 <span class="badge-status badge-pending">
@@ -263,7 +263,7 @@
                             </tr>
                         @empty
                             <tr class="no-data-row">
-                                <td colspan="{{ $isTeknik ? 13 : (auth()->user()->isSuperAdmin() ? 12 : 11) }}">
+                                <td colspan="{{ $isTeknik ? 13 : 12 }}">
                                     <i class="bi bi-inbox" style="font-size:40px;display:block;margin-bottom:8px;opacity:0.3;"></i>
                                     Belum ada data transaksi
                                 </td>

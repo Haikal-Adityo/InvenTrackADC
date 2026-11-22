@@ -4,12 +4,16 @@
     @php($appName = \App\Support\InventoryMail::appName())
     @php($pemohon = $stockRequests->first()?->user)
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #f59e0b; margin-bottom: 20px;">Request Stock Barang Baru</h2>
-        <p>Halo GAADM,</p>
+        <h2 style="color: #f59e0b; margin-bottom: 20px;">Request Stock Barang Baru — Butuh Verifikasi</h2>
+        <p>Halo GA Admin,</p>
         <p>Ada Request Stock Barang baru di {{ $appName }} dari <strong>{{ $pemohon?->name ?? '-' }}</strong> ({{ $pemohon?->bidang ? ucfirst($pemohon->bidang) : '-' }}):</p>
 
         @foreach($stockRequests as $stockRequest)
             <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">No. Request</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $stockRequest->document_number }}</td></tr>
+                @if($stockRequest->need_period_label)
+                    <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Periode Kebutuhan</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $stockRequest->need_period_label }}</td></tr>
+                @endif
                 <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Kategori</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $stockRequest->category ?: '-' }}</td></tr>
                 <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Jumlah Barang</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">{{ $stockRequest->lines->count() }} jenis</td></tr>
                 <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666; vertical-align: top;">Rincian</td><td style="padding: 8px; border-bottom: 1px solid #eee;">
@@ -20,7 +24,7 @@
             </table>
         @endforeach
 
-        <p>Silakan tinjau dan proses request ini di menu Stok Request.</p>
+        <p>Silakan <strong>verifikasi</strong> request ini di menu Stok Request. Setelah diverifikasi, request diteruskan ke Leader untuk disetujui.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
         <p style="color: #999; font-size: 12px;">Email ini dikirim otomatis oleh sistem {{ $appName }}.</p>
     </div>

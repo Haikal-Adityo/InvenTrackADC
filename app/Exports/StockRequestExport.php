@@ -9,10 +9,12 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class StockRequestExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class StockRequestExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize, WithStrictNullComparison, WithColumnFormatting
 {
     /**
      * @param Builder $query Query yang sudah difilter (hak akses + filter halaman/modal) dari StockRequestController.
@@ -37,13 +39,15 @@ class StockRequestExport implements FromCollection, WithHeadings, WithMapping, W
     public function headings(): array
     {
         return [
-            'ID Request',
+            'No. Request',
             'Tanggal',
             'Pemohon',
             'Barang',
             'Kategori',
-            'Harga Barang',
             'Jumlah',
+            'Satuan',
+            'Harga Satuan',
+            'Subtotal',
             'Keterangan',
             'Status',
             'Diproses Oleh',
@@ -54,17 +58,30 @@ class StockRequestExport implements FromCollection, WithHeadings, WithMapping, W
     public function map($row): array
     {
         return [
-            $row->request->id,
+            $row->request->document_number,
             $row->request->created_at->format('d/m/Y H:i'),
             $row->request->user->name ?? '-',
             $row->line->item->name ?? '-',
             $row->request->category ?: ($row->line->category ?: ($row->line->item->category ?? '-')),
-            $row->line->price,
-            $row->line->quantity,
-            $row->line->description ?? '-',
-            strtoupper($row->request->status),
+            (int) $row->line->quantity,
+            $row->line->item->unit ?? '-',
+            (int) $row->line->price,
+            (int) $row->line->price * (int) $row->line->quantity,
+            filled($row->line->description) ? $row->line->description : '-',
+            strtoupper($row->request->status_label),
             $row->request->processor->name ?? '-',
             $row->request->processed_at ? $row->request->processed_at->format('d/m/Y H:i') : '-',
+        ];
+    }
+
+    public function columnFormats(): array
+    {
+        $rupiah = '"Rp" #,##0';
+
+        return [
+            'F' => '#,##0',
+            'H' => $rupiah,
+            'I' => $rupiah,
         ];
     }
 

@@ -359,11 +359,17 @@ class TransactionController extends Controller
             }
         }
 
-        $transaction->update([
+        // Atomik: klik ganda / dua admin bersamaan hanya diproses sekali
+        $affected = Transaction::whereKey($transaction->id)->where('status', 'pending')->update([
             'status' => 'approved',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
+            'updated_at' => now(),
         ]);
+        if ($affected === 0) {
+            return back()->with('error', 'Transaksi ini sudah diproses.');
+        }
+        $transaction->refresh();
 
         \App\Support\InventoryNotifier::transaksiDiproses([$transaction], 'approved');
         if ($transaction->type === 'out') {
@@ -381,11 +387,16 @@ class TransactionController extends Controller
             return back()->with('error', 'Hanya transaksi pending yang bisa ditolak.');
         }
 
-        $transaction->update([
+        $affected = Transaction::whereKey($transaction->id)->where('status', 'pending')->update([
             'status' => 'rejected',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
+            'updated_at' => now(),
         ]);
+        if ($affected === 0) {
+            return back()->with('error', 'Transaksi ini sudah diproses.');
+        }
+        $transaction->refresh();
 
         \App\Support\InventoryNotifier::transaksiDiproses([$transaction], 'rejected');
 

@@ -33,6 +33,20 @@ class StuffRequest extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Permintaan dihapus (soft delete) → transaksi OUT otomatisnya ikut dihapus
+        // supaya tidak tersisa di Daftar Transaksi dan stok kembali.
+        static::deleting(function (StuffRequest $request) {
+            $request->transactions()->delete();
+        });
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
     public function lines()
     {
         return $this->hasMany(StuffRequestItem::class)->orderBy('id');

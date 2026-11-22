@@ -95,6 +95,7 @@ $itemDetailData[$itemRow->id] = [
                     </a>
                 </div>
 
+
             </form>
         </div>
     </div>
@@ -149,6 +150,14 @@ $itemDetailData[$itemRow->id] = [
     </div>
     @endif
 
+    @unless($isTeknik)
+        {{-- Tab Master Barang (sama dengan halaman Log Aktivitas) --}}
+        <div class="item-tabs mb-3">
+            <a href="{{ route('items.index') }}" class="item-tab active"><i class="bi bi-box-seam"></i> Daftar Barang</a>
+            <a href="{{ route('items.activity-log') }}" class="item-tab"><i class="bi bi-clock-history"></i> Log Aktivitas</a>
+        </div>
+    @endunless
+
     <!-- Table -->
     <div class="card">
         <div class="card-body p-0">
@@ -176,7 +185,7 @@ $itemDetailData[$itemRow->id] = [
                             <th>Ship Unloader</th>
                             <th>Low Limit
                                 (Aktual)</th>
-                            <th>Min. Stok</th>
+                            <th>Minimum</th>
                             <th>Volume</th>
                             <th>Satuan</th>
                             <th>Status</th>
@@ -201,8 +210,8 @@ $itemDetailData[$itemRow->id] = [
                             <th>Bidang</th>
                             @endif
                             <th>Satuan</th>
-                            <th>Min. Stok</th>
-                            <th>Stok Saat Ini</th>
+                            <th>Minimum</th>
+                            <th>Stok</th>
                             <th>Status</th>
                             <th style="width:100px;">Aksi</th>
                         </tr>
@@ -617,8 +626,8 @@ $itemDetailData[$itemRow->id] = [
                 appendDetailCell(grid, 'Bidang', data.bidang);
             }
             appendDetailCell(grid, 'Satuan', data.unit);
-            appendDetailCell(grid, 'Min Stok', data.min_stock);
-            appendDetailCell(grid, 'Stok Saat Ini', data.current_stock);
+            appendDetailCell(grid, 'Minimum', data.min_stock);
+            appendDetailCell(grid, 'Stok', data.current_stock);
             itemDetailModal.show();
         });
     });

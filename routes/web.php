@@ -58,6 +58,7 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     // Lookups routes must come BEFORE resource to avoid matching items/{item}
     Route::get('/items/lookups', [ItemLookupController::class, 'index'])->name('items.lookups.index')->middleware('userAkses:admin');
     Route::post('/items/lookup/replace', [ItemLookupController::class, 'replace'])->name('items.lookup.replace')->middleware('userAkses:admin');
+    Route::get('/items/log-aktivitas', [\App\Http\Controllers\ItemActivityController::class, 'index'])->name('items.activity-log')->middleware('userAkses:admin,manajer');
     Route::resource('items', ItemController::class)->middleware('userAkses:admin');
     Route::get('/items/{item}/edit-data', [ItemController::class, 'edit'])->name('items.editData')->middleware('userAkses:admin');
 
@@ -90,13 +91,22 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
 
     // Stock recap - admin, manager & staff
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index')->middleware('userAkses:admin,manajer,staf');
+    Route::get('/stock/opname', [\App\Http\Controllers\StockOpnameController::class, 'index'])->name('stock.opname.index')->middleware('userAkses:admin,manajer,staf');
+    Route::get('/stock/opname/baru', [\App\Http\Controllers\StockOpnameController::class, 'create'])->name('stock.opname.create')->middleware('userAkses:admin,staf');
+    Route::post('/stock/opname', [\App\Http\Controllers\StockOpnameController::class, 'store'])->name('stock.opname.store')->middleware('userAkses:admin,staf');
+    Route::post('/stock/opname/{stockOpname}/verify', [\App\Http\Controllers\StockOpnameController::class, 'verify'])->name('stock.opname.verify')->middleware('userAkses:admin');
+    Route::post('/stock/opname/{stockOpname}/reject', [\App\Http\Controllers\StockOpnameController::class, 'reject'])->name('stock.opname.reject')->middleware('userAkses:admin');
 
     // Stock requests - Umum: staff creates/admin approves, Teknik: admin creates/manager approves
     Route::get('/Stok-request', [StockRequestController::class, 'index'])->name('stock-requests.index')->middleware('userAkses:admin,manajer,staf');
     Route::post('/Stok-request', [StockRequestController::class, 'store'])->name('stock-requests.store')->middleware('userAkses:admin,staf');
     Route::get('/Stok-request/export', [StockRequestController::class, 'export'])->name('stock-requests.export')->middleware('userAkses:admin,manajer,staf');
-    Route::get('/Stok-request/export-pdf', [StockRequestController::class, 'exportAllPdf'])->name('stock-requests.exportAllPdf')->middleware('userAkses:admin,manajer,staf');
+    Route::post('/Stok-request/export-pdf', [StockRequestController::class, 'exportAllPdf'])->name('stock-requests.exportAllPdf')->middleware('userAkses:admin,manajer,staf');
+    Route::get('/Stok-request/rekap/{documentPrint}', [StockRequestController::class, 'showRecap'])->name('stock-requests.recap.show')->middleware('userAkses:admin,manajer,staf');
     Route::get('/Stok-request/{stockRequest}/export-pdf', [StockRequestController::class, 'exportPdf'])->name('stock-requests.exportPdf')->middleware('userAkses:admin,manajer,staf');
+    Route::get('/Stok-request/pengaturan-pdf', [StockRequestController::class, 'pdfSettings'])->name('stock-requests.pdf-settings')->middleware('userAkses:superadmin');
+    Route::put('/Stok-request/pengaturan-pdf', [StockRequestController::class, 'updatePdfSettings'])->name('stock-requests.pdf-settings.update')->middleware('userAkses:superadmin');
+    Route::post('/Stok-request/{stockRequest}/verify', [StockRequestController::class, 'verify'])->name('stock-requests.verify')->middleware('userAkses:admin');
     Route::post('/Stok-request/{stockRequest}/approve', [StockRequestController::class, 'approve'])->name('stock-requests.approve')->middleware('userAkses:admin,manajer');
     Route::post('/Stok-request/{stockRequest}/reject', [StockRequestController::class, 'reject'])->name('stock-requests.reject')->middleware('userAkses:admin,manajer');
     Route::delete('/Stok-request/{stockRequest}', [StockRequestController::class, 'destroy'])->name('stock-requests.destroy')->middleware('userAkses:superadmin');
@@ -117,6 +127,7 @@ Route::middleware(['auth', \App\Http\Middleware\RestrictTeknikAccess::class])->g
     Route::get('/import', [ImportController::class, 'index'])->name('import.index')->middleware('userAkses:admin');
     Route::post('/import', [ImportController::class, 'import'])->name('import.process')->middleware('userAkses:admin');
     Route::get('/import/template/{type}', [ImportController::class, 'downloadTemplate'])->name('import.template')->middleware('userAkses:admin');
+    Route::delete('/import/batch/{batch}', [ImportController::class, 'undoBatch'])->name('import.undo')->middleware('userAkses:admin');
 
     // Google Sheets sync - admin only
     Route::post('/sync/sheets', [GoogleSheetController::class, 'fullSync'])->name('sync.sheets')->middleware('userAkses:admin');

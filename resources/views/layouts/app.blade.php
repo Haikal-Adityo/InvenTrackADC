@@ -228,21 +228,30 @@
                 </a>
             @endif
 
-            {{-- Stuff Request: Admin & Staff --}}
-            @if(!$isTeknik && ($canUseAdminMenus || auth()->user()->isStaff()))
+            {{-- Stok Request: Admin & Staff + Manajer Umum (persetujuan tahap 2) --}}
+            @if(!$isTeknik && ($canUseAdminMenus || auth()->user()->isStaff() || auth()->user()->isManager()))
                 <a href="{{ route('stock-requests.index') }}"
                     onclick="switchSection('stockRequestsSection', this); return false;"
                     data-section="stockRequestsSection"
                     class="sidebar-link {{ request()->routeIs('stock-requests.*') ? 'active' : '' }}">
                     <i class="bi bi-cart-check-fill"></i>
                     <span>Stok Request</span>
-                    @if(auth()->user()->isSuperAdmin() || (auth()->user()->isAdmin() && !$isTeknik) || $isTeknikManager)
-                        @php $pendingStockReqCount = \App\Models\StockRequest::visibleFor(auth()->user())->pending()->count(); @endphp
-                        @if($pendingStockReqCount > 0)
-                            <span class="badge bg-warning text-dark">{{ $pendingStockReqCount }}</span>
-                        @endif
+                    @php
+                        $srUser = auth()->user();
+                        $pendingStockReqCount = 0;
+                        if ($srUser->isSuperAdmin() || ($srUser->isAdmin() && !$isTeknik) || $isTeknikManager) {
+                            $pendingStockReqCount = \App\Models\StockRequest::visibleFor($srUser)->pending()->count();
+                        } elseif ($srUser->isManager()) {
+                            $pendingStockReqCount = \App\Models\StockRequest::visibleFor($srUser)->where('status', 'verified')->count();
+                        }
+                    @endphp
+                    @if($pendingStockReqCount > 0)
+                        <span class="badge bg-warning text-dark">{{ $pendingStockReqCount }}</span>
                     @endif
                 </a>
+            @endif
+
+            @if(!$isTeknik && ($canUseAdminMenus || auth()->user()->isStaff()))
 
                 <a href="{{ route('stuff-requests.index') }}"
                     onclick="switchSection('stuffRequestsSection', this); return false;"
@@ -427,6 +436,8 @@
             readPath: @json(route('notifications.read-path')),
         };
     </script>
+    {{-- Cegah submit/klik ganda di semua form POST (public/js/nl-submit-guard.js) --}}
+    <script src="{{ asset('js/nl-submit-guard.js') }}?v={{ filemtime(public_path('js/nl-submit-guard.js')) }}"></script>
     <script src="{{ asset('js/nl-push.js') }}?v={{ filemtime(public_path('js/nl-push.js')) }}" defer></script>
 
     @stack('scripts')

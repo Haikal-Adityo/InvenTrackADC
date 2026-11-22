@@ -565,11 +565,16 @@ class StuffRequestController extends Controller
             return back()->with('error', 'Request ini sudah diproses.');
         }
 
-        $stuffRequest->update([
+        $affected = StuffRequest::whereKey($stuffRequest->id)->where('status', 'pending')->update([
             'status' => 'approved',
             'processed_by' => auth()->id(),
             'processed_at' => now(),
+            'updated_at' => now(),
         ]);
+        if ($affected === 0) {
+            return back()->with('error', 'Request ini sudah diproses.');
+        }
+        $stuffRequest->refresh();
 
         \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
 
@@ -588,11 +593,16 @@ class StuffRequestController extends Controller
             return back()->with('error', 'Request ini sudah diproses.');
         }
 
-        $stuffRequest->update([
+        $affected = StuffRequest::whereKey($stuffRequest->id)->where('status', 'pending')->update([
             'status' => 'rejected',
             'processed_by' => auth()->id(),
             'processed_at' => now(),
+            'updated_at' => now(),
         ]);
+        if ($affected === 0) {
+            return back()->with('error', 'Request ini sudah diproses.');
+        }
+        $stuffRequest->refresh();
 
         \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
 
@@ -635,6 +645,7 @@ class StuffRequestController extends Controller
                     Transaction::create([
                         'item_id' => $line->item_id,
                         'user_id' => auth()->id(),
+                        'stuff_request_id' => $stuffRequest->id,
                         'bidang' => $stuffRequest->bidang,
                         'no_normalisasi' => $line->item->no_normalisasi,
                         'lokasi' => $line->item->lokasi,
@@ -691,11 +702,16 @@ class StuffRequestController extends Controller
             return back()->with('error', 'Hanya request yang sudah disetujui, atau request pending Bidang Teknik oleh admin Teknik, yang bisa dibatalkan.');
         }
 
-        $stuffRequest->update([
+        $affected = StuffRequest::whereKey($stuffRequest->id)->where('status', $stuffRequest->status)->update([
             'status' => 'cancel',
             'completed_by' => auth()->id(),
             'completed_at' => now(),
+            'updated_at' => now(),
         ]);
+        if ($affected === 0) {
+            return back()->with('error', 'Request ini sudah diproses.');
+        }
+        $stuffRequest->refresh();
 
         \App\Support\InventoryNotifier::permintaanDiproses($stuffRequest);
 
@@ -706,9 +722,13 @@ class StuffRequestController extends Controller
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403, 'Hanya superadmin yang dapat menghapus riwayat permintaan barang.');
 
-        $stuffRequest->delete();
+        $txCount = $stuffRequest->transactions()->count();
 
-        return back()->with('success', 'Riwayat permintaan barang berhasil dihapus.');
+        DB::transaction(fn () => $stuffRequest->delete());
+
+        return back()->with('success', $txCount > 0
+            ? "Riwayat permintaan barang berhasil dihapus beserta {$txCount} transaksi OUT terkait (stok dikembalikan)."
+            : 'Riwayat permintaan barang berhasil dihapus.');
     }
 
     private function authorizeRequestDepartment(StuffRequest $stuffRequest): void

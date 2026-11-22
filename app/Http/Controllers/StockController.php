@@ -33,8 +33,10 @@ class StockController extends Controller
 
         $stockRequestItems = $this->stockRequestTriggerItems($viewUser);
         $pendingStockRequestItemIds = $this->pendingStockRequestItemIds();
-        $stockRequestItems = $stockRequestItems->map(function ($item) use ($pendingStockRequestItemIds) {
+        $pricing = \App\Support\StockRequestPricing::forItems($stockRequestItems->pluck('id'));
+        $stockRequestItems = $stockRequestItems->map(function ($item) use ($pendingStockRequestItemIds, $pricing) {
             $item['has_pending_request'] = in_array($item['id'], $pendingStockRequestItemIds, true);
+            $item['pricing'] = $pricing[$item['id']] ?? null;
 
             return $item;
         });
@@ -134,7 +136,7 @@ class StockController extends Controller
 
         return StockRequestLine::whereHas('stockRequest', function ($query) {
                 $query->where('user_id', auth()->id())
-                    ->where('status', 'pending');
+                    ->whereIn('status', ['pending', 'verified']);
             })
             ->pluck('item_id')
             ->map(fn($id) => (int) $id)

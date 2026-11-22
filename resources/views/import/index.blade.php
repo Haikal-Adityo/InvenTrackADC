@@ -25,6 +25,18 @@
                                         {{ session('import_type', 'Data') }} Berhasil
                                     </h6>
                                     <p style="margin:0;font-size:13px;color:var(--text-secondary);">{{ session('success') }}</p>
+                                    @if(session('import_batch'))
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mt-2" style="font-size:12.5px;color:var(--text-secondary);">
+                                            <span>Kode import: <strong>{{ session('import_batch') }}</strong>. Salah file / tanggal keliru?</span>
+                                            <form method="POST" action="{{ route('import.undo', session('import_batch')) }}" id="undoImportForm">
+                                                @csrf @method('DELETE')
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                onclick="swalConfirm('Batalkan import ini?', '{{ session('import_batch_count') }} transaksi pending dari import ini akan dihapus.', 'warning', 'Ya, Batalkan', '#undoImportForm')">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Batalkan Import Ini
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

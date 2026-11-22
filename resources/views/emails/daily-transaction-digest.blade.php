@@ -28,7 +28,7 @@
                 <tbody>
                     @foreach($transactions as $i => $tx)
                     <tr style="background: {{ $i % 2 == 0 ? '#ffffff' : '#f9fafb' }};">
-                        <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #666;">{{ $i + 1 }}</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #666;">{{ $loop->iteration }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #333;">{{ $tx->date->format('d/m/Y') }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #333; font-weight: 600;">{{ $tx->item->name ?? '-' }}</td>
                         <td style="padding: 10px 12px; border-bottom: 1px solid #eee;">

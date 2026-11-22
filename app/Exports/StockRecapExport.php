@@ -117,8 +117,8 @@ class StockRecapExport implements FromCollection, WithHeadings, WithMapping, Wit
                 'Satuan',
                 'Total Goods Receipt',
                 'Total Goods Issue',
-                'Stok Saat Ini',
-                'Min Stok',
+                'Stok',
+                'Minimum',
                 'Status',
             ];
         }
@@ -130,8 +130,8 @@ class StockRecapExport implements FromCollection, WithHeadings, WithMapping, Wit
             'Satuan',
             'Total Masuk',
             'Total Keluar',
-            'Stok Saat Ini',
-            'Min Stok',
+            'Stok',
+            'Minimum',
             'Status',
         ];
     }

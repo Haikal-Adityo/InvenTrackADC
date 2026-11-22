@@ -234,7 +234,11 @@ class UserController extends Controller
             return back()->with('error', 'User sudah diproses sebelumnya.');
         }
 
-        $user->update(['account_status' => 'approved']);
+        $affected = User::whereKey($user->id)->where('account_status', 'pending')->update(['account_status' => 'approved', 'updated_at' => now()]);
+        if ($affected === 0) {
+            return back()->with('error', 'User sudah diproses sebelumnya.');
+        }
+        $user->refresh();
 
         \App\Support\InventoryNotifier::akunDiproses($user);
 
@@ -253,7 +257,11 @@ class UserController extends Controller
             return back()->with('error', 'User sudah diproses sebelumnya.');
         }
 
-        $user->update(['account_status' => 'rejected']);
+        $affected = User::whereKey($user->id)->where('account_status', 'pending')->update(['account_status' => 'rejected', 'updated_at' => now()]);
+        if ($affected === 0) {
+            return back()->with('error', 'User sudah diproses sebelumnya.');
+        }
+        $user->refresh();
 
         \App\Support\InventoryNotifier::akunDiproses($user);
 

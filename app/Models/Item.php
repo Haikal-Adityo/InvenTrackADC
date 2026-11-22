@@ -23,6 +23,28 @@ class Item extends Model
         'min_stock',
     ];
 
+    /** Perubahan master barang dicatat ke Log Aktivitas. */
+    protected static function booted(): void
+    {
+        $labels = [
+            'name' => 'Nama', 'category' => 'Kategori', 'unit' => 'Satuan', 'min_stock' => 'Minimum',
+            'lokasi' => 'Lokasi', 'component' => 'Komponen', 'no_normalisasi' => 'No Normalisasi', 'bidang' => 'Bidang',
+        ];
+
+        static::created(fn (Item $item) => ActivityLog::record('item_created', 'Barang ditambahkan ke master', $item->id));
+
+        static::updated(function (Item $item) use ($labels) {
+            $changes = collect($item->getChanges())->except(['updated_at', 'created_at', 'deleted_at'])
+                ->filter(fn ($v, $k) => isset($labels[$k]))
+                ->map(fn ($v, $k) => $labels[$k].': '.($item->getOriginal($k) ?? '-').' → '.($v ?? '-'));
+            if ($changes->isNotEmpty()) {
+                ActivityLog::record('item_updated', $changes->implode('; '), $item->id);
+            }
+        });
+
+        static::deleted(fn (Item $item) => ActivityLog::record('item_deleted', 'Barang dihapus dari master', $item->id));
+    }
+
     public function transactions()
     {
         return $this->hasMany(Transaction::class);

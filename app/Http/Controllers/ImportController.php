@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Imports\ItemImport;
+use App\Imports\ImportDate;
+use App\Imports\TransactionDatePeek;
 use App\Imports\TransactionImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
@@ -49,26 +51,60 @@ class ImportController extends Controller
                     ->with('import_type', 'Barang');
 
             } else {
-                $import = new TransactionImport(auth()->user());
+                // Tebak urutan tanggal teks di file (mis. "4/17/2025" = m/d) supaya tanggal ambigu tidak tertukar
+                $peek = new TransactionDatePeek();
+                Excel::import($peek, $file);
+                $dateOrder = ImportDate::detectOrder($peek->dates);
+
+                $batch = 'IMP-' . now()->format('ymdHis') . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(5));
+                $import = new TransactionImport(auth()->user(), $dateOrder, $batch);
                 Excel::import($import, $file);
 
                 $successCount = $import->getRowCount();
+                $duplicateCount = $import->getDuplicateCount();
                 $unmatchedItems = $import->getUnmatchedItems();
                 $failures = $import->failures();
 
                 $message = "Import Transaksi selesai: {$successCount} baris berhasil diimport.";
-                if (count($unmatchedItems) > 0) {
-                    $message .= " Barang tidak ditemukan: " . implode(', ', $unmatchedItems) . ".";
+                if ($duplicateCount > 0) {
+                    $message .= " {$duplicateCount} baris dilewati karena sudah pernah diimport sebelumnya.";
                 }
+                if (count($unmatchedItems) > 0) {
+                    $message .= " Barang tidak ditemukan di Master Barang: " . implode(', ', $unmatchedItems) . ".";
+                }
+
+                \App\Models\ActivityLog::record('import_transactions', "Import transaksi {$batch}: {$successCount} baris", null, $batch);
 
                 return redirect()->route('import.index')->with('success', $message)
                     ->with('import_failures', $this->failuresForSession($failures))
-                    ->with('import_type', 'Transaksi');
+                    ->with('import_type', 'Transaksi')
+                    ->with('import_batch', $successCount > 0 ? $batch : null)
+                    ->with('import_batch_count', $successCount);
             }
         } catch (\Throwable $e) {
             Log::error('Import error', ['message' => $e->getMessage(), 'type' => $type]);
             return redirect()->route('import.index')->with('error', 'Gagal import: ' . $e->getMessage());
         }
+    }
+
+    /** Batalkan satu batch import transaksi: hapus baris yang masih pending/rejected (yang sudah approved tidak disentuh). */
+    public function undoBatch(string $batch)
+    {
+        abort_unless(preg_match('/^IMP-[0-9]{12}-[a-z0-9]{5}$/', $batch) === 1, 404);
+
+        $base = \App\Models\Transaction::visibleFor(auth()->user())->where('import_batch', $batch);
+        $approved = (clone $base)->where('status', 'approved')->count();
+        $deleted = (clone $base)->whereIn('status', ['pending', 'rejected'])->delete();
+
+        \App\Models\ActivityLog::record('import_undone', "Batalkan import {$batch}: {$deleted} baris dihapus", null, $batch);
+
+        $message = "Import {$batch} dibatalkan: {$deleted} transaksi dihapus.";
+        if ($approved > 0) {
+            $message .= " {$approved} transaksi sudah approved sehingga tidak dihapus (hapus manual bila perlu).";
+        }
+
+        return redirect()->route('import.index')->with($deleted > 0 ? 'success' : 'error', $deleted > 0 ? $message : 'Tidak ada transaksi pending dari import ini yang bisa dibatalkan.')
+            ->with('import_type', 'Pembatalan Import');
     }
 
     public function downloadTemplate($type)
