@@ -6,7 +6,7 @@
 @section('content')
     @php
         $authUser = auth()->user();
-        $canInput = ($authUser->isStaff() || $authUser->isAdmin()) && !$authUser->isTeknik();
+        $canInput = $authUser->isSuperAdmin() || (($authUser->isStaff() || $authUser->isAdmin()) && !$authUser->isTeknik());
     @endphp
     <div class="animate-fade-in">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -115,7 +115,7 @@
                                     · {{ $so->verified_at?->timezone($tz)->format('d/m/Y H:i') }}</div>
                             @endif
                         </div>
-                        @if($so->status === 'submitted' && $authUser->isAdmin())
+                        @if($so->status === 'submitted' && ($authUser->isAdmin() || $authUser->isSuperAdmin()))
                             <div class="d-flex gap-2">
                                 <form method="POST" action="{{ route('stock.opname.reject', $so) }}" id="soReject-{{ $so->id }}">@csrf</form>
                                 <form method="POST" action="{{ route('stock.opname.verify', $so) }}" id="soVerify-{{ $so->id }}">@csrf</form>
@@ -138,7 +138,7 @@
                     <i class="bi bi-clipboard-check" style="font-size:42px;opacity:.35;"></i>
                     <h6 class="mt-2">Belum ada stok opname</h6>
                     @if($canInput)
-                        <a href="{{ route('stock.opname.create') }}" class="btn btn-primary btn-sm mt-2"><i class="bi bi-plus-lg me-1"></i> Mulai Stok Opname</a>
+                        <p class="text-muted small mb-0">Klik <strong>Mulai Stok Opname</strong> di kanan atas untuk memulai.</p>
                     @endif
                 </div>
             </div>

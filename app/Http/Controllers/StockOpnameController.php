@@ -36,7 +36,7 @@ class StockOpnameController extends Controller
     {
         $this->authorizeInput();
 
-        $items = Item::visibleFor(auth()->user())->orderBy('category')->orderBy('name')->get()
+        $items = $this->soItems()->orderBy('category')->orderBy('name')->get()
             ->map(fn (Item $item) => [
                 'id' => $item->id,
                 'name' => $item->name,
@@ -66,14 +66,14 @@ class StockOpnameController extends Controller
             throw ValidationException::withMessages(['lines' => 'Isi stok aktual minimal untuk satu barang.']);
         }
 
-        $items = Item::visibleFor(auth()->user())->whereIn('id', $filled->pluck('item_id'))->get()->keyBy('id');
+        $items = $this->soItems()->whereIn('id', $filled->pluck('item_id'))->get()->keyBy('id');
         if ($items->count() !== $filled->pluck('item_id')->unique()->count()) {
             throw ValidationException::withMessages(['lines' => 'Ada barang yang tidak sesuai dengan bidang Anda.']);
         }
 
         $opname = DB::transaction(function () use ($validated, $filled, $items) {
             $opname = StockOpname::create([
-                'bidang' => auth()->user()->bidang ?? 'umum',
+                'bidang' => auth()->user()->isSuperAdmin() ? 'umum' : (auth()->user()->bidang ?? 'umum'),
                 'user_id' => auth()->id(),
                 'counted_at' => $validated['counted_at'],
                 'status' => 'submitted',
@@ -185,15 +185,23 @@ class StockOpnameController extends Controller
         return back()->with('success', "Stock opname {$stockOpname->document_number} ditolak. Stok tidak diubah.");
     }
 
+    /** Barang yang bisa di-SO: bidang user; superadmin = bidang Umum (Teknik tidak dipakai). */
+    private function soItems()
+    {
+        $user = auth()->user();
+
+        return $user->isSuperAdmin() ? Item::where('bidang', 'umum') : Item::visibleFor($user);
+    }
+
     private function authorizeInput(): void
     {
         $user = auth()->user();
-        abort_unless(($user->isStaff() || $user->isAdmin()) && ! $user->isTeknik(), 403, 'Hanya staf/admin bidang Umum yang dapat melakukan stock opname.');
+        abort_unless($user->isSuperAdmin() || (($user->isStaff() || $user->isAdmin()) && ! $user->isTeknik()), 403, 'Hanya staf/admin bidang Umum yang dapat melakukan stock opname.');
     }
 
     private function authorizeVerifier(StockOpname $opname): void
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() && $user->canAccessBidang($opname->bidang), 403, 'Hanya admin yang dapat memverifikasi stock opname.');
+        abort_unless($user->isSuperAdmin() || ($user->isAdmin() && $user->canAccessBidang($opname->bidang)), 403, 'Hanya admin yang dapat memverifikasi stock opname.');
     }
 }
